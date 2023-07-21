@@ -15,7 +15,7 @@ Small console based app for radioamateurs (HAM radio ethusiasts) to keep track o
 * Adding (a), editing (enter) and deleting (delete) "pins"
 * Searching of coordinates based on open maps API (PageDown in name edit field of create dialog)
 * Simple visualization of selected pins on map
-* Zoomable map with panning around (num keys 8546 - wsad but on num keys)
+* Zoomable map with panning around (num keys `8546 +-`  - wsad but on num keys)
 
 ## What does not work
 * Ton of UX stuff
