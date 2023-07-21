@@ -122,7 +122,15 @@ impl App {
             KeyCode::Left => {
                 self.state.log_list_state.deselect();
                 self.state.world_map_state.selected_position = None;
-            }
+            },
+
+            KeyCode::Enter => {
+                let id = self.state.log_list_state.selected().unwrap();
+                let log = Data::get_log(id);
+                if log.is_some() {
+                    self.create_dialog.edit(log.unwrap());
+                }
+            },
 
             // Map controls:
             KeyCode::Char('+') => self.zoom_map(-0.05),

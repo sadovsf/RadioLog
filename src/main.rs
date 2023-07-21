@@ -4,7 +4,6 @@ mod ui;
 mod map_api;
 
 use app::App;
-use map_api::OnlineMap;
 
 
 

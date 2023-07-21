@@ -5,7 +5,9 @@ use unicode_width::UnicodeWidthStr;
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Spans};
 
-use crate::{data::{Data, LogEntry}, map_api::OnlineMap, app::App};
+use crate::{data::{Data, LogEntry}, map_api::OnlineMap};
+
+use turbosql::Turbosql;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 #[repr(u8)]
@@ -110,6 +112,7 @@ impl Default for CreateLogDialogState {
 pub struct CreateLogDialog {
     state: CreateLogDialogState,
     last_log_id: Option<i64>,
+    log_to_edit: Option<LogEntry>,
 }
 
 
@@ -145,7 +148,20 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 impl CreateLogDialog {
     pub fn open(&mut self) {
+        self.log_to_edit = None;
         self.state.opened = true;
+    }
+
+    pub fn edit(&mut self, log :LogEntry) {
+        if log.rowid.is_none() {
+            return;
+        }
+
+        self.state.opened = true;
+        self.state.name = log.name.clone().unwrap_or("".to_string());
+        self.state.latitude = log.lat.map(|v| v.to_string()).unwrap_or("".to_string());
+        self.state.longtitude = log.long.map(|v| v.to_string()).unwrap_or("".to_string());
+        self.log_to_edit = Some(log);
     }
 
     pub fn is_opened(&self) -> bool {
@@ -226,12 +242,24 @@ impl CreateLogDialog {
 
 
     fn save(&mut self) {
-        let result = Data::insert_log(LogEntry {
-            name: Some(self.state.name.clone()),
-            lat: self.state.latitude.parse().ok(),
-            long: self.state.longtitude.parse().ok(),
-            ..Default::default()
-        });
+        let result :Result<i64, turbosql::Error>;
+        match self.log_to_edit.as_mut() {
+            Some(log) => {
+                log.name = Some(self.state.name.clone());
+                log.lat = self.state.latitude.parse().ok();
+                log.long = self.state.longtitude.parse().ok();
+                result = log.update().map(|_| log.rowid.unwrap());
+            },
+            None => {
+                result = Data::insert_log(LogEntry {
+                    name: Some(self.state.name.clone()),
+                    lat: self.state.latitude.parse().ok(),
+                    long: self.state.longtitude.parse().ok(),
+                    ..Default::default()
+                });
+            }
+        }
+
 
         if result.is_err() {
             self.state.has_error = true;
@@ -265,6 +293,7 @@ impl CreateLogDialog {
 
     fn close(&mut self) {
         self.clear_form();
+        self.log_to_edit = None;
         self.state.opened = false;
     }
 
