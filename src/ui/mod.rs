@@ -1,0 +1,18 @@
+mod log_list;
+pub use log_list::LogList;
+
+
+mod world_map;
+pub use world_map::{WorldMap, WorldMapState};
+
+mod create_log_dialog;
+pub use create_log_dialog::CreateLogDialog;
+
+use self::log_list::LogListState;
+
+
+#[derive(Default)]
+pub struct UIState {
+    pub log_list_state :LogListState,
+    pub world_map_state :WorldMapState,
+}
