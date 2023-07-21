@@ -1,9 +1,11 @@
-use std::fmt::Display;
+extern crate unicode_width;
+use std::{fmt::Display};
+use unicode_width::UnicodeWidthStr;
 
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Spans};
 
-use crate::data::{Data, LogEntry};
+use crate::{data::{Data, LogEntry}, map_api::OnlineMap, app::App};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 #[repr(u8)]
@@ -13,6 +15,7 @@ enum InputFields {
     Longtitude,
     LAST
 }
+
 
 impl Display for InputFields {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -106,6 +109,7 @@ impl Default for CreateLogDialogState {
 #[derive(Default)]
 pub struct CreateLogDialog {
     state: CreateLogDialogState,
+    last_log_id: Option<i64>,
 }
 
 
@@ -138,6 +142,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+
 impl CreateLogDialog {
     pub fn open(&mut self) {
         self.state.opened = true;
@@ -159,7 +164,10 @@ impl CreateLogDialog {
                 .as_ref(),
             )
             .split(area);
-        row_layout[1].y -= 1;
+
+        if row_layout[1].y > 0 {
+            row_layout[1].y -= 1;
+        }
 
         let input = Paragraph::new(content.as_ref())
             .style(match self.state.current_input == field {
@@ -176,14 +184,14 @@ impl CreateLogDialog {
 
         if self.state.current_input == field {
             f.set_cursor(
-                row_layout[1].x + content.len() as u16 + 1,
+                row_layout[1].x + content.width() as u16 + 1,
                 row_layout[1].y + 1,
             )
         }
     }
 
     pub fn render<B: Backend>(&mut self, f :&mut Frame<B>) {
-        let area = centered_rect(50, 25, f.size());
+        let area = centered_rect(50, 35, f.size());
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Create log").borders(Borders::ALL),
@@ -231,11 +239,54 @@ impl CreateLogDialog {
             return;
         }
 
+        self.last_log_id = result.ok();
         self.close();
     }
 
+    pub fn get_last_created_log(&self) -> Option<LogEntry> {
+        if self.last_log_id.is_none() {
+            return None;
+        }
+        Data::get_log(self.last_log_id.unwrap())
+    }
+
+    pub fn clear_last_created_log(&mut self) {
+        self.last_log_id = None;
+    }
+
+
+    fn clear_form(&mut self) {
+        for idx in 0..InputFields::LAST as u8 {
+            let input = InputFields::from(idx);
+            let field_content = input.to_field_mut(&mut self.state);
+            field_content.clear();
+        }
+    }
+
     fn close(&mut self) {
+        self.clear_form();
         self.state.opened = false;
+    }
+
+    fn find_location(&mut self, name :&String) {
+        let results = OnlineMap::query_location(&self.state.name);
+        if results.is_err() {
+            self.state.has_error = true;
+            self.state.error_message = format!("Error: {:?}", results.err().unwrap());
+            return;
+        }
+
+        let list = results.unwrap();
+        if list.len() == 0 {
+            self.state.has_error = true;
+            self.state.error_message = format!("Error: No locations found for {}", name);
+            return;
+        }
+
+        let top_location = &list[0];
+        self.state.name = top_location.name.clone();
+        self.state.latitude = top_location.latitude.to_string();
+        self.state.longtitude = top_location.longitude.to_string();
     }
 
 
@@ -244,6 +295,7 @@ impl CreateLogDialog {
             KeyCode::Esc => self.close(),
             KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
             KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
+            KeyCode::Delete => self.clear_form(),
             KeyCode::Enter => {
                 if self.state.has_error {
                     self.state.has_error = false;
@@ -257,6 +309,7 @@ impl CreateLogDialog {
             KeyCode::Char(c) => {
                 self.state.current_input.to_field_mut(&mut self.state).push(c);
             },
+            KeyCode::PageDown => self.find_location(&self.state.name.clone()),
             _ => {}
         }
     }

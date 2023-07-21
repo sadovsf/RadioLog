@@ -1,8 +1,10 @@
 mod app;
 mod data;
 mod ui;
+mod map_api;
 
 use app::App;
+use map_api::OnlineMap;
 
 
 
@@ -27,7 +29,6 @@ fn reset_terminal() -> CrosstermResult<()> {
 }
 
 fn main() -> Result<(), io::Error> {
-
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();

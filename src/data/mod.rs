@@ -63,6 +63,10 @@ impl Data {
         }
     }
 
+    pub fn get_log(id :i64) -> Option<LogEntry> {
+        select!(LogEntry "WHERE rowid = " id).ok()
+    }
+
     pub fn insert_log(log :LogEntry) -> Result<i64, turbosql::Error> {
         log.insert()
     }

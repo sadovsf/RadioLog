@@ -12,7 +12,6 @@ pub struct App {
     create_dialog :CreateLogDialog,
 }
 
-
 impl App {
     pub fn new() -> App {
         App {
@@ -77,7 +76,16 @@ impl App {
         ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
 
         if self.create_dialog.is_opened() {
-        self.create_dialog.render(f);
+            self.create_dialog.render(f);
+        } else {
+            match self.create_dialog.get_last_created_log() {
+                Some(log) => {
+                    self.state.log_list_state.select(&log);
+                    self.state.world_map_state.selected_position = log.position();
+                    self.create_dialog.clear_last_created_log();
+                },
+                None => {}
+            }
         }
     }
 
@@ -133,7 +141,10 @@ impl App {
                 let result = Data::delete_log(to_del.unwrap());
                 if result.is_err() {
                     self.pop_error(format!("Error deleting log: {}", result.err().unwrap()));
+                    return;
                 }
+                self.state.world_map_state.selected_position = None;
+                self.state.log_list_state.deselect();
             },
 
             KeyCode::Char('a') => self.create_dialog.open(),

@@ -1,6 +1,6 @@
 use tui::{widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget}, layout::Rect, buffer::Buffer, text::Spans, style::{Style, Color, Modifier} };
 
-use crate::{data::{Data, position::Position}};
+use crate::{data::{Data, position::Position, LogEntry}};
 
 
 
@@ -61,6 +61,11 @@ impl LogListState {
 
     pub fn deselect(&mut self) {
         self.list_state.select(None);
+    }
+
+    pub fn select(&mut self, log :&LogEntry) {
+        let pos = Data::get_logs().iter().position(|l| l.rowid == log.rowid);
+        self.list_state.select(pos);
     }
 }
 
