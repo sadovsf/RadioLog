@@ -5,6 +5,7 @@ use super::CreateLogDialogState;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 #[repr(u8)]
+#[allow(unused)]
 pub enum InputFields {
     Name = 0,
     Latitude,
