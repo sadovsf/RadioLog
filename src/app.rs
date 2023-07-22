@@ -149,7 +149,7 @@ impl App {
     fn zoom_map(&mut self, zoom :f64) {
         let old_center = ui::WorldMap::map_center(&self.state.world_map_state);
         self.state.world_map_state.zoom += zoom;
-        self.state.world_map_state.zoom = self.state.world_map_state.zoom.clamp(0.1, 10.0);
+        self.state.world_map_state.zoom = self.state.world_map_state.zoom.clamp(0.05, 5.0);
         let new_center = ui::WorldMap::map_center(&self.state.world_map_state);
 
         self.state.world_map_state.top_left.longitude += old_center.longitude - new_center.longitude;

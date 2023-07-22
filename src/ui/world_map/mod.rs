@@ -34,7 +34,7 @@ impl WorldMap {
         ctx.print(
             state.own_position.longitude,
             state.own_position.latitude,
-            Span::styled("X", Style::default().fg(Color::Red))
+            Span::styled("x", Style::default().fg(Color::Green))
         );
 
         if state.selected_position.is_some() {
@@ -42,7 +42,7 @@ impl WorldMap {
             ctx.print(
                 selected_position.longitude,
                 selected_position.latitude,
-                Span::styled("X", Style::default().fg(Color::Green))
+                Span::styled("x", Style::default().fg(Color::Red))
             );
         }
     }
