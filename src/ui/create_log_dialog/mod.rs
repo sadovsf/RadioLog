@@ -1,78 +1,16 @@
 extern crate unicode_width;
-use std::{fmt::Display};
 use unicode_width::UnicodeWidthStr;
 
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Spans};
 
-use crate::{data::{Data, LogEntry}, map_api::OnlineMap};
+use crate::{data::{Data, LogEntry}, map_api::OnlineMap, traits::DialogHelpers};
 
 use turbosql::Turbosql;
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[repr(u8)]
-enum InputFields {
-    Name = 0,
-    Latitude,
-    Longtitude,
-    LAST
-}
-
-
-impl Display for InputFields {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl Into<u8> for InputFields {
-    fn into(self) -> u8 {
-        self as u8
-    }
-}
-
-impl From<u8> for InputFields {
-    fn from(val :u8) -> Self {
-        if val >= InputFields::LAST.into() {
-            panic!("Invalid value for InputFields");
-        }
-        unsafe { *(&val as *const u8 as *const Self) }
-    }
-}
-
-impl InputFields {
-    fn next(self) -> InputFields {
-        let old_val = self as u8;
-        let new_val = (old_val + 1) % InputFields::LAST as u8;
-        new_val.into()
-    }
-
-    fn prev(self) -> InputFields {
-        let old_val = self as u8;
-        if old_val == 0 {
-            return (InputFields::LAST as u8 - 1).into();
-        }
-        ((old_val - 1) % InputFields::LAST as u8).into()
-    }
-
-    fn to_field_mut<'a>(self, state :&'a mut CreateLogDialogState) -> &'a mut String {
-        match self {
-            InputFields::Name => &mut state.name,
-            InputFields::Latitude => &mut state.latitude,
-            InputFields::Longtitude => &mut state.longtitude,
-            _ => panic!("Invalid value for InputFields")
-        }
-    }
-    fn to_field<'a>(self, state :&'a CreateLogDialogState) -> &'a String {
-        match self {
-            InputFields::Name => &state.name,
-            InputFields::Latitude => &state.latitude,
-            InputFields::Longtitude => &state.longtitude,
-            _ => panic!("Invalid value for InputFields")
-        }
-    }
-}
-
+mod input_fields;
+use input_fields::InputFields;
+use crate::traits::DialogInterface;
 
 
 pub struct CreateLogDialogState {
@@ -116,42 +54,89 @@ pub struct CreateLogDialog {
 }
 
 
+impl DialogInterface for CreateLogDialog {
+    fn set_opened(&mut self, opened :bool) {
+        self.state.opened = opened;
+    }
+
+    fn is_opened(&self) -> bool {
+        self.state.opened
+    }
+
+    fn open(&mut self) {
+        self.log_to_edit = None;
+        self.set_opened(true);
+    }
+
+    fn close(&mut self) {
+        self.clear_form();
+        self.log_to_edit = None;
+        self.set_opened(false);
+    }
+
+    fn render<B: Backend>(&mut self, f :&mut Frame<B>) {
+        let area = DialogHelpers::center_rect_perc(50, 35, f.size());
+        f.render_widget(Clear, area); //this clears out the background
+        f.render_widget(
+            Block::default().title("Create log").borders(Borders::ALL),
+            area
+        );
+
+        let mut constraints = vec!();
+        for _ in 0..InputFields::LAST as u8 {
+            constraints.push(Constraint::Length(5));
+        }
+        constraints.push(Constraint::Length(1));
 
 
+        let popup_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(constraints.as_ref())
+            .split(area);
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
+        for idx in 0..InputFields::LAST as u8 {
+            let input = InputFields::from(idx);
+            let field_content = input.to_field(&self.state);
 
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(popup_layout[1])[1]
+            self.create_input(
+                f,
+                field_content,
+                input,
+                popup_layout[idx as usize]
+            );
+        }
+    }
+
+
+    fn on_input(&mut self, key :KeyEvent) {
+        match key.code {
+            KeyCode::Esc => self.close(),
+            KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
+            KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
+            KeyCode::Delete => self.clear_form(),
+            KeyCode::Enter => {
+                if self.state.has_error {
+                    self.state.has_error = false;
+                    return;
+                }
+                self.save();
+            },
+            KeyCode::Backspace => {
+                self.state.current_input.to_field_mut(&mut self.state).pop();
+            },
+            KeyCode::Char(c) => {
+                self.state.current_input.to_field_mut(&mut self.state).push(c);
+            },
+            KeyCode::PageDown => self.find_location(&self.state.name.clone()),
+            _ => {}
+        }
+    }
 }
 
 
-impl CreateLogDialog {
-    pub fn open(&mut self) {
-        self.log_to_edit = None;
-        self.state.opened = true;
-    }
 
+impl CreateLogDialog {
     pub fn edit(&mut self, log :LogEntry) {
         if log.rowid.is_none() {
             return;
@@ -162,10 +147,6 @@ impl CreateLogDialog {
         self.state.latitude = log.lat.map(|v| v.to_string()).unwrap_or("".to_string());
         self.state.longtitude = log.long.map(|v| v.to_string()).unwrap_or("".to_string());
         self.log_to_edit = Some(log);
-    }
-
-    pub fn is_opened(&self) -> bool {
-        self.state.opened
     }
 
     fn create_input<'a, B: Backend>(&'a self, f :&mut Frame<B>, content :&'a String, field :InputFields, area :Rect) {
@@ -203,40 +184,6 @@ impl CreateLogDialog {
                 row_layout[1].x + content.width() as u16 + 1,
                 row_layout[1].y + 1,
             )
-        }
-    }
-
-    pub fn render<B: Backend>(&mut self, f :&mut Frame<B>) {
-        let area = centered_rect(50, 35, f.size());
-        f.render_widget(Clear, area); //this clears out the background
-        f.render_widget(
-            Block::default().title("Create log").borders(Borders::ALL),
-            area
-        );
-
-        let mut constraints = vec!();
-        for _ in 0..InputFields::LAST as u8 {
-            constraints.push(Constraint::Length(5));
-        }
-        constraints.push(Constraint::Length(1));
-
-
-        let popup_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .constraints(constraints.as_ref())
-            .split(area);
-
-        for idx in 0..InputFields::LAST as u8 {
-            let input = InputFields::from(idx);
-            let field_content = input.to_field(&self.state);
-
-            self.create_input(
-                f,
-                field_content,
-                input,
-                popup_layout[idx as usize]
-            );
         }
     }
 
@@ -291,11 +238,7 @@ impl CreateLogDialog {
         }
     }
 
-    fn close(&mut self) {
-        self.clear_form();
-        self.log_to_edit = None;
-        self.state.opened = false;
-    }
+
 
     fn find_location(&mut self, name :&String) {
         let results = OnlineMap::query_location(&self.state.name);
@@ -316,30 +259,5 @@ impl CreateLogDialog {
         self.state.name = top_location.name.clone();
         self.state.latitude = top_location.latitude.to_string();
         self.state.longtitude = top_location.longitude.to_string();
-    }
-
-
-    pub fn on_input(&mut self, key :KeyEvent) {
-        match key.code {
-            KeyCode::Esc => self.close(),
-            KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
-            KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
-            KeyCode::Delete => self.clear_form(),
-            KeyCode::Enter => {
-                if self.state.has_error {
-                    self.state.has_error = false;
-                    return;
-                }
-                self.save();
-            },
-            KeyCode::Backspace => {
-                self.state.current_input.to_field_mut(&mut self.state).pop();
-            },
-            KeyCode::Char(c) => {
-                self.state.current_input.to_field_mut(&mut self.state).push(c);
-            },
-            KeyCode::PageDown => self.find_location(&self.state.name.clone()),
-            _ => {}
-        }
     }
 }

@@ -3,13 +3,22 @@ use std::time::{Instant, Duration};
 use crossterm::{event::{Event, self, KeyCode, KeyEventKind}, Result};
 use tui::{Terminal, backend::Backend, Frame, layout::{Direction, Layout, Constraint} };
 
-use crate::{ui::{self, UIState, CreateLogDialog}, data::{Data}};
+use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle}, data::Data};
+use crate::traits::DialogInterface;
 
+
+#[derive(Clone)]
+enum Actions {
+    DeleteLog(i64)
+}
 
 
 pub struct App {
     state: UIState,
     create_dialog :CreateLogDialog,
+
+    alert_dialog :Option<AlertDialog>,
+    pending_action :Option<Actions>
 }
 
 impl App {
@@ -17,6 +26,8 @@ impl App {
         App {
             state: UIState::default(),
             create_dialog: CreateLogDialog::default(),
+            alert_dialog: None,
+            pending_action: None
         }
     }
 
@@ -33,9 +44,13 @@ impl App {
 
             if event::poll(timeout)? {
                 if let Event::Key(key) = event::read()? {
-                    if self.create_dialog.is_opened() {
+                    if self.alert_dialog.is_some() {
+                        self.alert_dialog.as_mut().unwrap().on_input(key);
+                    }
+                    else if self.create_dialog.is_opened() {
                         self.create_dialog.on_input(key);
-                    } else {
+                    }
+                    else {
                         match key.code {
                             KeyCode::Esc => return Ok(()),
                             _ => self.handle_input(key)
@@ -55,6 +70,35 @@ impl App {
 
     fn on_tick(&mut self) {
 
+    }
+
+    fn process_action(&mut self, action :Actions) {
+        match action {
+            Actions::DeleteLog(log_id) => {
+                let deselect = self.state.log_list_state.selected() == Some(log_id);
+                let res = Data::delete_log(log_id);
+                if res.is_err() {
+                    self.pop_error(format!("Error deleting log: {}", res.err().unwrap()));
+                    return;
+                }
+                if deselect {
+                    self.state.world_map_state.selected_position = None;
+                    self.state.log_list_state.deselect();
+                }
+            }
+        }
+    }
+
+    fn on_dialog_result(&mut self, button :AlertDialogButton) {
+        if self.pending_action.is_none() {
+            return;
+        }
+        match button {
+            AlertDialogButton::YES | AlertDialogButton::OK => {
+                self.process_action(self.pending_action.clone().unwrap());
+            },
+            _ => {}
+        }
     }
 
 
@@ -87,6 +131,18 @@ impl App {
                 None => {}
             }
         }
+
+        if self.alert_dialog.is_some() {
+            let alert = self.alert_dialog.as_mut().unwrap();
+            alert.render(f);
+            if !alert.is_opened() {
+                let result = alert.get_result();
+                if result.is_some() {
+                    self.on_dialog_result(result.unwrap());
+                }
+                self.alert_dialog = None;
+            }
+        }
     }
 
 
@@ -100,8 +156,21 @@ impl App {
         self.state.world_map_state.top_left.latitude += old_center.latitude - new_center.latitude;
     }
 
-    fn pop_error(&self, _text :String) {
-        // TBD
+    fn pop_error(&mut self, text :String) {
+        if self.alert_dialog.is_some() {
+            return;
+        }
+
+        self.alert_dialog = Some(AlertDialog::new(text, AlertDialogButton::OK, AlertDialogStyle::Error));
+    }
+
+    fn pop_confirm(&mut self, text :String, style :AlertDialogStyle, action_after :Option<Actions>) {
+        if self.alert_dialog.is_some() {
+            return;
+        }
+
+        self.alert_dialog = Some(AlertDialog::new(text, AlertDialogButton::YES | AlertDialogButton::NO, style));
+        self.pending_action = action_after;
     }
 
     fn handle_input(&mut self, key :event::KeyEvent) {
@@ -146,13 +215,14 @@ impl App {
                 if to_del.is_none() {
                     return;
                 }
-                let result = Data::delete_log(to_del.unwrap());
-                if result.is_err() {
-                    self.pop_error(format!("Error deleting log: {}", result.err().unwrap()));
-                    return;
-                }
-                self.state.world_map_state.selected_position = None;
-                self.state.log_list_state.deselect();
+                let log_info = Data::get_log(to_del.unwrap()).unwrap();
+                self.pop_confirm(
+                    format!("Are you sure you want to delete log '{}'?", log_info.name.unwrap()),
+                    AlertDialogStyle::Warning,
+                    Some(
+                        Actions::DeleteLog(to_del.unwrap())
+                    )
+                );
             },
 
             KeyCode::Char('a') => self.create_dialog.open(),

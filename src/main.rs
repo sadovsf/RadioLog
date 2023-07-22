@@ -2,6 +2,7 @@ mod app;
 mod data;
 mod ui;
 mod map_api;
+mod traits;
 
 use app::App;
 

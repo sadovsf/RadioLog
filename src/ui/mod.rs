@@ -8,6 +8,11 @@ pub use world_map::{WorldMap, WorldMapState};
 mod create_log_dialog;
 pub use create_log_dialog::CreateLogDialog;
 
+mod alert_dialog;
+pub use alert_dialog::AlertDialog;
+pub use alert_dialog::AlertDialogButton;
+pub use alert_dialog::AlertDialogStyle;
+
 use self::log_list::LogListState;
 
 
