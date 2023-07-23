@@ -3,7 +3,9 @@ mod data;
 mod ui;
 mod map_api;
 mod traits;
+mod actions;
 
+use actions::ActionProcessor;
 use app::App;
 
 
@@ -38,8 +40,10 @@ fn main() -> Result<(), io::Error> {
 
 
     // setup app
+    let mut action_processor = ActionProcessor::default();
+
     let mut app = App::new();
-    let result = app.run(&mut terminal);
+    let result = app.run(&mut terminal, &mut action_processor);
 
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {

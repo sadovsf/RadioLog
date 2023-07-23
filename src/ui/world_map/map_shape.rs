@@ -7,7 +7,9 @@ pub struct MapShape {
     pub color: Color,
 }
 
-
+// Improve by using country borders from
+//      https://public.opendatasoft.com/explore/dataset/world-administrative-boundaries/export/
+//      Possibility to use https://docs.rs/shapefile/latest/shapefile/ and rendering straight from shape file
 impl Shape for MapShape {
     fn draw(&self, painter: &mut Painter) {
         for (x, y) in WORLD_HIGH_RESOLUTION {

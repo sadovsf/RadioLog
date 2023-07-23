@@ -1,108 +1,23 @@
 use std::time::{Instant, Duration};
 
-use crossterm::{event::{Event, self, KeyCode, KeyEventKind}, Result};
+use crossterm::{event::{Event, self, KeyCode, KeyEventKind, KeyEvent}, Result};
 use tui::{Terminal, backend::Backend, Frame, layout::{Direction, Layout, Constraint} };
 
-use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle}, data::Data};
+use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}};
 use crate::traits::DialogInterface;
+use crate::traits::UIElement;
 
-
-#[derive(Clone)]
-enum Actions {
-    DeleteLog(i64)
-}
 
 
 pub struct App {
     state: UIState,
     create_dialog :CreateLogDialog,
 
-    alert_dialog :Option<AlertDialog>,
-    pending_action :Option<Actions>
+    alert_dialog :Option<AlertDialog>
 }
 
-impl App {
-    pub fn new() -> App {
-        App {
-            state: UIState::default(),
-            create_dialog: CreateLogDialog::default(),
-            alert_dialog: None,
-            pending_action: None
-        }
-    }
-
-    pub fn run<B: Backend>(&mut self, terminal :&mut Terminal<B>) -> Result<()> {
-        const TICK_RATE :Duration = std::time::Duration::from_millis(250);
-
-        let mut last_tick = Instant::now();
-        loop {
-            terminal.draw(|f| self.draw(f) )?;
-
-            let timeout = TICK_RATE
-                .checked_sub(last_tick.elapsed())
-                .unwrap_or_else(|| Duration::from_secs(0));
-
-            if event::poll(timeout)? {
-                if let Event::Key(key) = event::read()? {
-                    if self.alert_dialog.is_some() {
-                        self.alert_dialog.as_mut().unwrap().on_input(key);
-                    }
-                    else if self.create_dialog.is_opened() {
-                        self.create_dialog.on_input(key);
-                    }
-                    else {
-                        match key.code {
-                            KeyCode::Esc => return Ok(()),
-                            _ => self.handle_input(key)
-                        }
-                    }
-                }
-            }
-
-            if last_tick.elapsed() >= TICK_RATE {
-                self.on_tick();
-                last_tick = Instant::now();
-            }
-        }
-    }
-
-
-
-    fn on_tick(&mut self) {
-
-    }
-
-    fn process_action(&mut self, action :Actions) {
-        match action {
-            Actions::DeleteLog(log_id) => {
-                let deselect = self.state.log_list_state.selected() == Some(log_id);
-                let res = Data::delete_log(log_id);
-                if res.is_err() {
-                    self.pop_error(format!("Error deleting log: {}", res.err().unwrap()));
-                    return;
-                }
-                if deselect {
-                    self.state.world_map_state.selected_position = None;
-                    self.state.log_list_state.deselect();
-                }
-            }
-        }
-    }
-
-    fn on_dialog_result(&mut self, button :AlertDialogButton) {
-        if self.pending_action.is_none() {
-            return;
-        }
-        match button {
-            AlertDialogButton::YES | AlertDialogButton::OK => {
-                self.process_action(self.pending_action.clone().unwrap());
-            },
-            _ => {}
-        }
-    }
-
-
-    fn draw<B: Backend>(&mut self, f :&mut Frame<B>) {
+impl UIElement for App {
+    fn render<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult {
         let rects = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
@@ -119,32 +34,203 @@ impl App {
 
         ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
 
-        if self.create_dialog.is_opened() {
-            self.create_dialog.render(f);
-        } else {
-            match self.create_dialog.get_last_created_log() {
-                Some(log) => {
-                    self.state.log_list_state.select(&log);
-                    self.state.world_map_state.selected_position = log.position();
-                    self.create_dialog.clear_last_created_log();
-                },
-                None => {}
-            }
+        self.create_dialog.on_draw(f, actions);
+        if let Some(alert) = self.alert_dialog.as_mut() {
+            alert.on_draw(f, actions);
         }
 
-        if self.alert_dialog.is_some() {
-            let alert = self.alert_dialog.as_mut().unwrap();
-            alert.render(f);
-            if !alert.is_opened() {
-                let result = alert.get_result();
-                if result.is_some() {
-                    self.on_dialog_result(result.unwrap());
+        self.process_actions(actions);
+        RenderResult::Rendered
+    }
+
+    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
+        match action {
+            Actions::DeleteLog(log_id) => {
+                let deselect = self.state.log_list_state.selected() == Some(*log_id);
+                let res = Data::delete_log(*log_id);
+                if res.is_err() {
+                    self.pop_error(format!("Error deleting log: {}", res.err().unwrap()));
+                    return EventResult::Handled;
                 }
-                self.alert_dialog = None;
+
+                if deselect {
+                    self.state.world_map_state.selected_position = None;
+                    self.state.log_list_state.deselect();
+                }
+                EventResult::Handled
+            },
+
+            Actions::CreateLog(log_data) => {
+                let res = Data::insert_log(log_data);
+                if res.is_err() {
+                    self.pop_error(format!("Error creating log: {}", res.err().unwrap()));
+                    return EventResult::Handled;
+                }
+                self.state.log_list_state.select(res.unwrap());
+                self.state.world_map_state.selected_position = log_data.position();
+                EventResult::Handled
+            }
+
+            Actions::ShowError(text) => {
+                self.pop_error(text.clone());
+                EventResult::Handled
+            },
+        }
+    }
+
+    fn on_input(&mut self, key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
+        if key.kind != KeyEventKind::Press {
+            return EventResult::NotHandled;
+        }
+
+        match key.code {
+            KeyCode::Down => {
+                self.state.log_list_state.next();
+                self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+                EventResult::Handled
+            },
+            KeyCode::Up => {
+                self.state.log_list_state.previous();
+                self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+                EventResult::Handled
+            },
+
+            KeyCode::Left => {
+                self.state.log_list_state.deselect();
+                self.state.world_map_state.selected_position = None;
+                EventResult::Handled
+            },
+
+            KeyCode::Enter => {
+                let id = self.state.log_list_state.selected().unwrap();
+                let log = Data::get_log(id);
+                if log.is_some() {
+                    self.create_dialog.edit(log.unwrap());
+                }
+                EventResult::Handled
+            },
+
+            // Map controls:
+            KeyCode::Char('+') => {
+                self.zoom_map(-0.05);
+                EventResult::Handled
+            },
+            KeyCode::Char('-') => {
+                self.zoom_map(0.05);
+                EventResult::Handled
+            },
+
+            KeyCode::Char('8') => {
+                self.state.world_map_state.top_left.latitude += 5.0;
+                EventResult::Handled
+            },
+            KeyCode::Char('5') => {
+                self.state.world_map_state.top_left.latitude -= 5.0;
+                EventResult::Handled
+            },
+            KeyCode::Char('4') => {
+                self.state.world_map_state.top_left.longitude -= 5.0;
+                EventResult::Handled
+            },
+            KeyCode::Char('6') => {
+                self.state.world_map_state.top_left.longitude += 5.0;
+                EventResult::Handled
+            },
+
+            KeyCode::Delete => {
+                let to_del = self.state.log_list_state.selected();
+                if to_del.is_none() {
+                    return EventResult::NotHandled;
+                }
+
+                let log_info = Data::get_log(to_del.unwrap()).unwrap();
+                self.pop_confirm(
+                    format!("Are you sure you want to delete log '{}'?", log_info.name.unwrap()),
+                    AlertDialogStyle::Warning,
+                    Some(
+                        Actions::DeleteLog(to_del.unwrap())
+                    )
+                );
+                EventResult::Handled
+            },
+
+            KeyCode::Char('a') => {
+                self.create_dialog.open();
+                EventResult::Handled
+            },
+            _ => EventResult::NotHandled
+        }
+    }
+}
+
+impl App {
+    pub fn new() -> App {
+        App {
+            state: UIState::default(),
+            create_dialog: CreateLogDialog::default(),
+            alert_dialog: None,
+        }
+    }
+
+    pub fn run<B: Backend>(&mut self, terminal :&mut Terminal<B>, actions :&mut ActionProcessor) -> Result<()> {
+        const TICK_RATE :Duration = std::time::Duration::from_millis(250);
+
+        let mut last_tick = Instant::now();
+        loop {
+            terminal.draw(|f| {
+                self.render(f, actions);
+            })?;
+
+            let timeout = TICK_RATE
+                .checked_sub(last_tick.elapsed())
+                .unwrap_or_else(|| Duration::from_secs(0));
+
+            if event::poll(timeout)? {
+                if let Event::Key(key) = event::read()? {
+                    let event = UIEvents::Input(key);
+                    let mut result = match self.alert_dialog.as_mut() {
+                        Some(alert) => alert.on_event(&event, actions),
+                        None => EventResult::NOOP
+                    };
+
+                    if result != EventResult::Handled {
+                        result = self.create_dialog.on_event(&event, actions);
+                    }
+
+                    if result != EventResult::Handled {
+                        match key.code {
+                            KeyCode::Esc => return Ok(()),
+                            _ => {
+                                self.on_input(&key, actions);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if last_tick.elapsed() >= TICK_RATE {
+                self.on_tick();
+                last_tick = Instant::now();
             }
         }
     }
 
+
+    fn on_tick(&mut self) {
+
+    }
+
+    fn process_actions(&mut self, actions :&mut ActionProcessor) {
+        while let Ok(action) = actions.peek() {
+            let event = UIEvents::Action(action);
+
+            let result = self.on_event(&event, actions);
+            if result != EventResult::Handled {
+                self.create_dialog.on_event(&event, actions);
+            }
+            actions.consume().expect("Failed to consume action");
+        }
+    }
 
     fn zoom_map(&mut self, zoom :f64) {
         let old_center = ui::WorldMap::map_center(&self.state.world_map_state);
@@ -157,78 +243,20 @@ impl App {
     }
 
     fn pop_error(&mut self, text :String) {
-        if self.alert_dialog.is_some() {
-            return;
-        }
-
-        self.alert_dialog = Some(AlertDialog::new(text, AlertDialogButton::OK, AlertDialogStyle::Error));
+        self.alert_dialog = Some(AlertDialog::new(
+            text,
+            AlertDialogButton::OK,
+            AlertDialogStyle::Error,
+            None)
+        );
     }
 
     fn pop_confirm(&mut self, text :String, style :AlertDialogStyle, action_after :Option<Actions>) {
-        if self.alert_dialog.is_some() {
-            return;
-        }
-
-        self.alert_dialog = Some(AlertDialog::new(text, AlertDialogButton::YES | AlertDialogButton::NO, style));
-        self.pending_action = action_after;
+        self.alert_dialog = Some(AlertDialog::new(
+            text,
+            AlertDialogButton::YES | AlertDialogButton::NO,
+            style,
+            action_after
+        ));
     }
-
-    fn handle_input(&mut self, key :event::KeyEvent) {
-        if key.kind != KeyEventKind::Press {
-            return;
-        }
-
-        match key.code {
-            KeyCode::Down => {
-                self.state.log_list_state.next();
-                self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
-            },
-            KeyCode::Up => {
-                self.state.log_list_state.previous();
-                self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
-            },
-
-            KeyCode::Left => {
-                self.state.log_list_state.deselect();
-                self.state.world_map_state.selected_position = None;
-            },
-
-            KeyCode::Enter => {
-                let id = self.state.log_list_state.selected().unwrap();
-                let log = Data::get_log(id);
-                if log.is_some() {
-                    self.create_dialog.edit(log.unwrap());
-                }
-            },
-
-            // Map controls:
-            KeyCode::Char('+') => self.zoom_map(-0.05),
-            KeyCode::Char('-') => self.zoom_map(0.05),
-
-            KeyCode::Char('8') => self.state.world_map_state.top_left.latitude += 5.0,
-            KeyCode::Char('5') => self.state.world_map_state.top_left.latitude -= 5.0,
-            KeyCode::Char('4') => self.state.world_map_state.top_left.longitude -= 5.0,
-            KeyCode::Char('6') => self.state.world_map_state.top_left.longitude += 5.0,
-
-            KeyCode::Delete => {
-                let to_del = self.state.log_list_state.selected();
-                if to_del.is_none() {
-                    return;
-                }
-                let log_info = Data::get_log(to_del.unwrap()).unwrap();
-                self.pop_confirm(
-                    format!("Are you sure you want to delete log '{}'?", log_info.name.unwrap()),
-                    AlertDialogStyle::Warning,
-                    Some(
-                        Actions::DeleteLog(to_del.unwrap())
-                    )
-                );
-            },
-
-            KeyCode::Char('a') => self.create_dialog.open(),
-            _ => {}
-        };
-    }
-
-
 }

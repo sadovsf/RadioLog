@@ -1,6 +1,10 @@
 use crossterm::event::KeyEvent;
 use tui::{layout::{Rect, Layout, Direction, Constraint}, backend::Backend, Frame};
 
+use crate::actions::{ActionProcessor, Actions};
+
+use super::{UIElement, RenderResult, EventResult, UIEvents};
+
 
 pub struct DialogHelpers {}
 
@@ -47,13 +51,46 @@ pub trait DialogInterface {
     fn set_opened(&mut self, opened :bool);
     fn is_opened(&self) -> bool;
 
-    fn render<B: Backend>(&mut self, f :&mut Frame<B>) -> ();
-    fn on_input(&mut self, key :KeyEvent) -> ();
+    fn render<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult;
+
+    fn on_input(&mut self, _key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
+        EventResult::NotHandled
+    }
+
+    fn on_action(&mut self, _action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
+        EventResult::NotHandled
+    }
 
     fn open(&mut self) {
         self.set_opened(true);
     }
     fn close(&mut self) {
         self.set_opened(false);
+    }
+}
+
+impl<T> UIElement for T where T: DialogInterface {
+
+    fn on_draw<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult {
+        if self.is_opened() == false {
+            return RenderResult::NOOP;
+        }
+        self.render(f, actions)
+    }
+
+    fn on_event(&mut self, event :&UIEvents, actions :&mut ActionProcessor) -> EventResult {
+        if self.is_opened() == false {
+            return EventResult::NotHandled;
+        }
+
+        self._route_event(event, actions)
+    }
+
+    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
+        T::on_input(self, key, actions)
+    }
+
+    fn on_action(&mut self, action :&Actions, actions :&mut ActionProcessor) -> EventResult {
+        T::on_action(self, action, actions)
     }
 }

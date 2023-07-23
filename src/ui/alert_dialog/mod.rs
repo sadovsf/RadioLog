@@ -1,8 +1,8 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use tui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
-use crate::traits::{DialogInterface, DialogHelpers};
+use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult}, actions::{Actions, ActionProcessor}};
 
 
 bitflags::bitflags! {
@@ -43,7 +43,6 @@ impl AlertDialogButton {
 
 struct AlertDialogState {
     opened :bool,
-    focused_button :AlertDialogButton,
 }
 
 
@@ -53,20 +52,19 @@ pub struct AlertDialog {
     message :String,
     buttons :AlertDialogButton,
     style :AlertDialogStyle,
-    dialog_result :Option<AlertDialogButton>,
+    action_on_close: Option<Actions>
 }
 
 impl AlertDialog {
-    pub fn new(message :String, buttons :AlertDialogButton, style :AlertDialogStyle) -> Self {
+    pub fn new(message :String, buttons :AlertDialogButton, style :AlertDialogStyle, on_confirm: Option<Actions>) -> Self {
         Self {
             state :AlertDialogState {
                 opened: true,
-                focused_button: buttons.iter().next().unwrap().clone(),
             },
             message: message,
             buttons: buttons,
             style: style,
-            dialog_result :None,
+            action_on_close: on_confirm,
         }
     }
 
@@ -126,15 +124,6 @@ impl AlertDialog {
             button_center
         );
     }
-
-    pub fn get_result(&self) -> Option<AlertDialogButton> {
-        self.dialog_result.clone()
-    }
-
-    fn set_result(&mut self, result :AlertDialogButton) -> () {
-        self.dialog_result = Some(result);
-        self.close();
-    }
 }
 
 impl DialogInterface for AlertDialog {
@@ -146,7 +135,7 @@ impl DialogInterface for AlertDialog {
         self.state.opened
     }
 
-    fn render<B: tui::backend::Backend>(&mut self, f :&mut tui::Frame<B>) -> () {
+    fn render<B: tui::backend::Backend>(&mut self, f :&mut tui::Frame<B>, _actions :&mut ActionProcessor) -> RenderResult {
         let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, f.size());
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
@@ -199,20 +188,27 @@ impl DialogInterface for AlertDialog {
 
         for (index, button) in self.buttons.iter().enumerate() {
             self.render_button(f, button, button_layout[index]);
-        }
+        };
 
+        RenderResult::Rendered
     }
 
-    fn on_input(&mut self, key :crossterm::event::KeyEvent) -> () {
+    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
         match key.code {
             KeyCode::Esc => {
-                self.set_result(AlertDialogButton::CANCEL);
+                self.close();
+                EventResult::Handled
             },
             KeyCode::Enter => {
-                self.set_result(self.state.focused_button.clone());
+                if self.action_on_close.is_some() {
+                    actions.add(self.action_on_close.take().unwrap());
+                }
+                self.close();
+                EventResult::Handled
             },
-            _ => {}
+            _ => {
+                EventResult::NotHandled
+            }
         }
     }
 }
-

@@ -4,7 +4,7 @@ use unicode_width::UnicodeWidthStr;
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Spans};
 
-use crate::{data::{Data, LogEntry}, map_api::OnlineMap, traits::DialogHelpers};
+use crate::{data::{LogEntry}, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::{ActionProcessor, Actions}};
 
 use turbosql::Turbosql;
 
@@ -15,9 +15,6 @@ use crate::traits::DialogInterface;
 
 pub struct CreateLogDialogState {
     opened: bool,
-
-    has_error: bool,
-    error_message: String,
 
     current_input: InputFields,
 
@@ -30,9 +27,6 @@ impl Default for CreateLogDialogState {
     fn default() -> Self {
         Self {
             opened: false,
-
-            has_error: false,
-            error_message: String::new(),
 
             current_input: InputFields::Name,
 
@@ -49,7 +43,6 @@ impl Default for CreateLogDialogState {
 #[derive(Default)]
 pub struct CreateLogDialog {
     state: CreateLogDialogState,
-    last_log_id: Option<i64>,
     log_to_edit: Option<LogEntry>,
 }
 
@@ -74,7 +67,8 @@ impl DialogInterface for CreateLogDialog {
         self.set_opened(false);
     }
 
-    fn render<B: Backend>(&mut self, f :&mut Frame<B>) {
+    fn render<B: Backend>(&mut self, f :&mut Frame<B>, _actions :&mut ActionProcessor) -> RenderResult {
+
         let area = DialogHelpers::center_rect_perc(50, 35, f.size());
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
@@ -105,32 +99,28 @@ impl DialogInterface for CreateLogDialog {
                 input,
                 popup_layout[idx as usize]
             );
-        }
+        };
+
+        RenderResult::Rendered
     }
 
-
-    fn on_input(&mut self, key :KeyEvent) {
+    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
         match key.code {
             KeyCode::Esc => self.close(),
             KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
             KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
             KeyCode::Delete => self.clear_form(),
-            KeyCode::Enter => {
-                if self.state.has_error {
-                    self.state.has_error = false;
-                    return;
-                }
-                self.save();
-            },
+            KeyCode::Enter => self.save(actions),
             KeyCode::Backspace => {
                 self.state.current_input.to_field_mut(&mut self.state).pop();
             },
             KeyCode::Char(c) => {
                 self.state.current_input.to_field_mut(&mut self.state).push(c);
             },
-            KeyCode::PageDown => self.find_location(&self.state.name.clone()),
+            KeyCode::PageDown => self.find_location(&self.state.name.clone(), actions),
             _ => {}
-        }
+        };
+        EventResult::Handled
     }
 }
 
@@ -188,45 +178,28 @@ impl CreateLogDialog {
     }
 
 
-    fn save(&mut self) {
-        let result :Result<i64, turbosql::Error>;
+    fn save(&mut self, actions :&mut ActionProcessor) {
         match self.log_to_edit.as_mut() {
             Some(log) => {
                 log.name = Some(self.state.name.clone());
                 log.lat = self.state.latitude.parse().ok();
                 log.long = self.state.longtitude.parse().ok();
-                result = log.update().map(|_| log.rowid.unwrap());
+                let result = log.update();
+                if result.is_err() {
+                    actions.add(Actions::ShowError(format!("Error: {:?}", result.err().unwrap())));
+                    return;
+                }
             },
             None => {
-                result = Data::insert_log(LogEntry {
+                actions.add(Actions::CreateLog(LogEntry {
                     name: Some(self.state.name.clone()),
                     lat: self.state.latitude.parse().ok(),
                     long: self.state.longtitude.parse().ok(),
                     ..Default::default()
-                });
+                }))
             }
         }
-
-
-        if result.is_err() {
-            self.state.has_error = true;
-            self.state.error_message = format!("Error: {}", result.err().unwrap());
-            return;
-        }
-
-        self.last_log_id = result.ok();
         self.close();
-    }
-
-    pub fn get_last_created_log(&self) -> Option<LogEntry> {
-        if self.last_log_id.is_none() {
-            return None;
-        }
-        Data::get_log(self.last_log_id.unwrap())
-    }
-
-    pub fn clear_last_created_log(&mut self) {
-        self.last_log_id = None;
     }
 
 
@@ -240,18 +213,16 @@ impl CreateLogDialog {
 
 
 
-    fn find_location(&mut self, name :&String) {
+    fn find_location(&mut self, name :&String, actions :&mut ActionProcessor) {
         let results = OnlineMap::query_location(&self.state.name);
         if results.is_err() {
-            self.state.has_error = true;
-            self.state.error_message = format!("Error: {:?}", results.err().unwrap());
+            actions.add(Actions::ShowError(format!("Error: {:?}", results.err().unwrap())));
             return;
         }
 
         let list = results.unwrap();
         if list.len() == 0 {
-            self.state.has_error = true;
-            self.state.error_message = format!("Error: No locations found for {}", name);
+            actions.add(Actions::ShowError(format!("Error: No locations found for {}", name)));
             return;
         }
 

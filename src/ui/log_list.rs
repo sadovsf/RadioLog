@@ -63,8 +63,8 @@ impl LogListState {
         self.list_state.select(None);
     }
 
-    pub fn select(&mut self, log :&LogEntry) {
-        let pos = Data::get_logs().iter().position(|l| l.rowid == log.rowid);
+    pub fn select(&mut self, log_id :i64) {
+        let pos = Data::get_logs().iter().position(|l| l.rowid == Some(log_id));
         self.list_state.select(pos);
     }
 }

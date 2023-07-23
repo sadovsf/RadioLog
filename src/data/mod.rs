@@ -9,7 +9,7 @@ use config::ConfigData;
 pub mod position;
 use position::Position;
 
-#[derive(Turbosql)]
+#[derive(Turbosql, Clone, PartialEq)]
 pub struct LogEntry {
     pub rowid: Option<i64>,
     pub long: Option<f64>,
@@ -67,7 +67,7 @@ impl Data {
         select!(LogEntry "WHERE rowid = " id).ok()
     }
 
-    pub fn insert_log(log :LogEntry) -> Result<i64, turbosql::Error> {
+    pub fn insert_log(log :&LogEntry) -> Result<i64, turbosql::Error> {
         log.insert()
     }
 

@@ -27,7 +27,12 @@ impl Default for WorldMapState {
 }
 
 
-pub struct WorldMap;
+#[derive(Default)]
+pub struct WorldMap {
+
+}
+
+
 impl WorldMap {
 
     pub fn draw_points(ctx :&mut Context, state :&WorldMapState) {
