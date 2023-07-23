@@ -2,7 +2,7 @@ extern crate unicode_width;
 use unicode_width::UnicodeWidthStr;
 
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Spans};
+use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Span};
 
 use crate::{data::{LogEntry}, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::{ActionProcessor, Actions}};
 
@@ -164,7 +164,7 @@ impl CreateLogDialog {
             .block(Block::default().borders(Borders::ALL));
 
         f.render_widget(
-            Paragraph::new(Spans::from(format!("{}:", field) )),
+            Paragraph::new(Span::raw(format!("{}:", field) )),
             row_layout[0]
         );
         f.render_widget(input, row_layout[1]);

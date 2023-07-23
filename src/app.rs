@@ -3,7 +3,7 @@ use std::time::{Instant, Duration};
 use crossterm::{event::{Event, self, KeyCode, KeyEventKind, KeyEvent}, Result};
 use tui::{Terminal, backend::Backend, Frame, layout::{Direction, Layout, Constraint} };
 
-use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}};
+use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, DetailsWindow}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}};
 use crate::traits::DialogInterface;
 use crate::traits::UIElement;
 
@@ -12,6 +12,7 @@ use crate::traits::UIElement;
 pub struct App {
     state: UIState,
     create_dialog :CreateLogDialog,
+    details_window :DetailsWindow,
 
     alert_dialog :Option<AlertDialog>
 }
@@ -33,13 +34,19 @@ impl UIElement for App {
         f.render_stateful_widget(log_block, rects[0], &mut self.state.log_list_state);
 
         ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
+        self.details_window.render(f, actions);
 
+        ///// Dialogs:
         self.create_dialog.on_draw(f, actions);
         if let Some(alert) = self.alert_dialog.as_mut() {
             alert.on_draw(f, actions);
         }
 
+
+
+        ///// Accumulated actions processing:
         self.process_actions(actions);
+
         RenderResult::Rendered
     }
 
@@ -66,8 +73,7 @@ impl UIElement for App {
                     self.pop_error(format!("Error creating log: {}", res.err().unwrap()));
                     return EventResult::Handled;
                 }
-                self.state.log_list_state.select(res.unwrap());
-                self.state.world_map_state.selected_position = log_data.position();
+                self.select_log(res.unwrap());
                 EventResult::Handled
             }
 
@@ -85,19 +91,18 @@ impl UIElement for App {
 
         match key.code {
             KeyCode::Down => {
-                self.state.log_list_state.next();
-                self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+                let id = self.state.log_list_state.next();
+                self.select_log(id);
                 EventResult::Handled
             },
             KeyCode::Up => {
-                self.state.log_list_state.previous();
-                self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+                let id = self.state.log_list_state.previous();
+                self.select_log(id);
                 EventResult::Handled
             },
 
             KeyCode::Left => {
-                self.state.log_list_state.deselect();
-                self.state.world_map_state.selected_position = None;
+                self.deselect_all();
                 EventResult::Handled
             },
 
@@ -163,11 +168,25 @@ impl UIElement for App {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 impl App {
     pub fn new() -> App {
         App {
             state: UIState::default(),
             create_dialog: CreateLogDialog::default(),
+            details_window: DetailsWindow::default(),
             alert_dialog: None,
         }
     }
@@ -215,6 +234,17 @@ impl App {
         }
     }
 
+    fn select_log(&mut self, id :i64) {
+        self.state.log_list_state.select(id);
+        self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+        self.details_window.set_log(Data::get_log(id).unwrap());
+    }
+
+    fn deselect_all(&mut self) {
+        self.state.log_list_state.deselect();
+        self.state.world_map_state.selected_position = None;
+        self.details_window.set_log(Default::default());
+    }
 
     fn on_tick(&mut self) {
 

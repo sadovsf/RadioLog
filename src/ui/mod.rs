@@ -13,6 +13,9 @@ pub use alert_dialog::AlertDialog;
 pub use alert_dialog::AlertDialogButton;
 pub use alert_dialog::AlertDialogStyle;
 
+mod details_window;
+pub use self::details_window::DetailsWindow;
+
 use self::log_list::LogListState;
 
 

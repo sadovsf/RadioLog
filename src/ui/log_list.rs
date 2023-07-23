@@ -1,4 +1,4 @@
-use tui::{widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget}, layout::Rect, buffer::Buffer, text::Spans, style::{Style, Color, Modifier} };
+use tui::{widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget}, layout::Rect, buffer::Buffer, text::Span, style::{Style, Color, Modifier} };
 
 use crate::{data::{Data, position::Position, LogEntry}};
 
@@ -17,10 +17,11 @@ impl Default for LogListState {
 }
 
 impl LogListState {
-    pub fn next(&mut self) {
+    pub fn next(&self) -> i64 {
+        let all_logs = Data::get_logs();
         let i = match self.list_state.selected() {
             Some(i) => {
-                if i >= Data::get_logs().len() - 1 {
+                if i >= all_logs.len() - 1 {
                     0
                 } else {
                     i + 1
@@ -28,21 +29,22 @@ impl LogListState {
             },
             None => 0,
         };
-        self.list_state.select(Some(i));
+        all_logs[i].rowid.unwrap()
     }
 
-    pub fn previous(&mut self) {
+    pub fn previous(&self) -> i64 {
+        let all_logs = Data::get_logs();
         let i = match self.list_state.selected() {
             Some(i) => {
                 if i == 0 {
-                    Data::get_logs().len() - 1
+                    all_logs.len() - 1
                 } else {
                     i - 1
                 }
             },
             None => 0,
         };
-        self.list_state.select(Some(i));
+        all_logs[i].rowid.unwrap()
     }
 
     pub fn selected_location(&self) -> Option<Position> {
@@ -80,7 +82,7 @@ impl<'a> Default for LogList<'a> {
         let list_items :Vec<ListItem> = Data::get_logs()
             .iter()
             .map(|log| {
-                let span = Spans::from(log.name.as_ref().unwrap().clone());
+                let span = Span::raw(log.name.as_ref().unwrap().clone());
                 ListItem::new(span)
             })
             .collect();

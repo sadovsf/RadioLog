@@ -86,6 +86,10 @@ impl<T> UIElement for T where T: DialogInterface {
         self._route_event(event, actions)
     }
 
+    fn render<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult {
+        T::render(self, f, actions)
+    }
+
     fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
         T::on_input(self, key, actions)
     }

@@ -22,9 +22,7 @@ pub enum UIEvents {
 }
 
 pub trait UIElement {
-    fn render<B: Backend>(&mut self, _f :&mut Frame<B>, _actions :&mut ActionProcessor) -> RenderResult {
-        RenderResult::NOOP
-    }
+    fn render<B: Backend>(&mut self, _f :&mut Frame<B>, _actions :&mut ActionProcessor) -> RenderResult;
 
 
     fn on_draw<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult {
