@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use tui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
-use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult}, actions::{Actions, ActionProcessor}};
+use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult}, actions::{Actions, ActionProcessor}, common_types::RenderFrame};
 
 
 bitflags::bitflags! {
@@ -96,7 +96,7 @@ impl AlertDialog {
             .bg(Color::LightCyan)
     }
 
-    fn render_button<B: tui::backend::Backend>(&self, f :&mut tui::Frame<B>, button :AlertDialogButton, layout :Rect) {
+    fn render_button(&self, f :&mut RenderFrame, button :AlertDialogButton, layout :Rect) {
         let button_type = button.iter_names().next().unwrap();
         let button_style = self.decide_button_style(button);
 
@@ -135,7 +135,7 @@ impl DialogInterface for AlertDialog {
         self.state.opened
     }
 
-    fn render<B: tui::backend::Backend>(&mut self, f :&mut tui::Frame<B>, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
         let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, f.size());
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(

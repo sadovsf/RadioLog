@@ -1,6 +1,6 @@
 use tui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::{Span}};
 
-use crate::{traits::{UIElement, RenderResult}, data::{LogEntry, Data}, actions::ActionProcessor};
+use crate::{traits::{UIElement, RenderResult}, data::{LogEntry, Data}, actions::ActionProcessor, common_types::RenderFrame};
 
 
 
@@ -37,7 +37,7 @@ impl DetailsWindow {
 
 impl UIElement for DetailsWindow {
 
-    fn render<B: tui::backend::Backend>(&mut self, f :&mut Frame<B>, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
         if self.state.selected_log.is_none() {
             return RenderResult::NOOP;
         }

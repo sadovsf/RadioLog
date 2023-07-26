@@ -1,6 +1,6 @@
 use tui::{widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget}, layout::Rect, buffer::Buffer, text::Span, style::{Style, Color, Modifier} };
 
-use crate::{data::{Data, position::Position, LogEntry}};
+use crate::{data::{Data, position::Position}};
 
 
 

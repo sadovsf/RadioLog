@@ -1,7 +1,5 @@
 use crossterm::event::KeyEvent;
-use tui::{backend::Backend, Frame};
-
-use crate::actions::{Actions, ActionProcessor};
+use crate::{actions::{Actions, ActionProcessor}, common_types::RenderFrame};
 
 #[derive(PartialEq, Eq)]
 pub enum EventResult {
@@ -22,10 +20,10 @@ pub enum UIEvents {
 }
 
 pub trait UIElement {
-    fn render<B: Backend>(&mut self, _f :&mut Frame<B>, _actions :&mut ActionProcessor) -> RenderResult;
+    fn render(&mut self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult;
 
 
-    fn on_draw<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult {
+    fn on_draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
         self.render(f, actions)
     }
 

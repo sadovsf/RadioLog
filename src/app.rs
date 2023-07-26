@@ -1,24 +1,137 @@
-use std::time::{Instant, Duration};
+use std::{time::{Instant, Duration}, io::Stdout};
 
 use crossterm::{event::{Event, self, KeyCode, KeyEventKind, KeyEvent}, Result};
-use tui::{Terminal, backend::Backend, Frame, layout::{Direction, Layout, Constraint} };
+use tui::{layout::{Direction, Layout, Constraint}, Terminal, backend::CrosstermBackend };
 
-use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, DetailsWindow}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}};
-use crate::traits::DialogInterface;
+use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, DetailsWindow}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame};
 use crate::traits::UIElement;
+use crate::traits::DialogInterface;
 
 
 
 pub struct App {
     state: UIState,
-    create_dialog :CreateLogDialog,
-    details_window :DetailsWindow,
 
-    alert_dialog :Option<AlertDialog>
+    details_window :DetailsWindow,
+    create_dialog :CreateLogDialog,
+    alert_dialog :Option<AlertDialog>,
 }
 
+
+impl App {
+    pub fn new() -> App {
+        App {
+            state: UIState::default(),
+            details_window: DetailsWindow::default(),
+            create_dialog: CreateLogDialog::default(),
+            alert_dialog: None,
+        }
+    }
+
+    pub fn run(&mut self, terminal :&mut Terminal<CrosstermBackend<Stdout>>, actions :&mut ActionProcessor) -> Result<()> {
+        const TICK_RATE :Duration = std::time::Duration::from_millis(250);
+
+        let mut last_tick = Instant::now();
+        loop {
+            terminal.draw(|f| {
+                self.render(f, actions);
+            })?;
+
+            let timeout = TICK_RATE
+                .checked_sub(last_tick.elapsed())
+                .unwrap_or_else(|| Duration::from_secs(0));
+
+            if event::poll(timeout)? {
+                if let Event::Key(key) = event::read()? {
+                    let event = UIEvents::Input(key);
+                    let mut result = match self.alert_dialog.as_mut() {
+                        Some(alert) => alert.on_event(&event, actions),
+                        None => EventResult::NOOP
+                    };
+
+                    if result != EventResult::Handled {
+                        result = self.create_dialog.on_event(&event, actions);
+                    }
+
+                    if result != EventResult::Handled {
+                        match key.code {
+                            KeyCode::Esc => return Ok(()),
+                            _ => {
+                                self.on_input(&key, actions);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if last_tick.elapsed() >= TICK_RATE {
+                self.on_tick();
+                last_tick = Instant::now();
+            }
+        }
+    }
+
+    fn select_log(&mut self, id :i64) {
+        self.state.log_list_state.select(id);
+        self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+        self.details_window.set_log(Data::get_log(id).unwrap());
+    }
+
+    fn deselect_all(&mut self) {
+        self.state.log_list_state.deselect();
+        self.state.world_map_state.selected_position = None;
+        self.details_window.set_log(Default::default());
+    }
+
+    fn on_tick(&mut self) {
+
+    }
+
+    fn process_actions(&mut self, actions :&mut ActionProcessor) {
+        while let Ok(action) = actions.peek() {
+            let event = UIEvents::Action(action);
+
+            let result = self.on_event(&event, actions);
+            if result != EventResult::Handled {
+                self.create_dialog.on_event(&event, actions);
+            }
+            actions.consume().expect("Failed to consume action");
+        }
+    }
+
+    fn zoom_map(&mut self, zoom :f64) {
+        let old_center = ui::WorldMap::map_center(&self.state.world_map_state);
+        self.state.world_map_state.zoom += zoom;
+        self.state.world_map_state.zoom = self.state.world_map_state.zoom.clamp(0.05, 5.0);
+        let new_center = ui::WorldMap::map_center(&self.state.world_map_state);
+
+        self.state.world_map_state.top_left.longitude += old_center.longitude - new_center.longitude;
+        self.state.world_map_state.top_left.latitude += old_center.latitude - new_center.latitude;
+    }
+
+    fn pop_error(&mut self, text :String) {
+        self.alert_dialog = Some(AlertDialog::new(
+            text,
+            AlertDialogButton::OK,
+            AlertDialogStyle::Error,
+            None)
+        );
+    }
+
+    fn pop_confirm(&mut self, text :String, style :AlertDialogStyle, action_after :Option<Actions>) {
+        self.alert_dialog = Some(AlertDialog::new(
+            text,
+            AlertDialogButton::YES | AlertDialogButton::NO,
+            style,
+            action_after
+        ));
+    }
+}
+
+
+
 impl UIElement for App {
-    fn render<B: Backend>(&mut self, f :&mut Frame<B>, actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
         let rects = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
@@ -34,7 +147,7 @@ impl UIElement for App {
         f.render_stateful_widget(log_block, rects[0], &mut self.state.log_list_state);
 
         ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
-        self.details_window.render(f, actions);
+        self.details_window.on_draw(f, actions);
 
         ///// Dialogs:
         self.create_dialog.on_draw(f, actions);
@@ -165,128 +278,5 @@ impl UIElement for App {
             },
             _ => EventResult::NotHandled
         }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-impl App {
-    pub fn new() -> App {
-        App {
-            state: UIState::default(),
-            create_dialog: CreateLogDialog::default(),
-            details_window: DetailsWindow::default(),
-            alert_dialog: None,
-        }
-    }
-
-    pub fn run<B: Backend>(&mut self, terminal :&mut Terminal<B>, actions :&mut ActionProcessor) -> Result<()> {
-        const TICK_RATE :Duration = std::time::Duration::from_millis(250);
-
-        let mut last_tick = Instant::now();
-        loop {
-            terminal.draw(|f| {
-                self.render(f, actions);
-            })?;
-
-            let timeout = TICK_RATE
-                .checked_sub(last_tick.elapsed())
-                .unwrap_or_else(|| Duration::from_secs(0));
-
-            if event::poll(timeout)? {
-                if let Event::Key(key) = event::read()? {
-                    let event = UIEvents::Input(key);
-                    let mut result = match self.alert_dialog.as_mut() {
-                        Some(alert) => alert.on_event(&event, actions),
-                        None => EventResult::NOOP
-                    };
-
-                    if result != EventResult::Handled {
-                        result = self.create_dialog.on_event(&event, actions);
-                    }
-
-                    if result != EventResult::Handled {
-                        match key.code {
-                            KeyCode::Esc => return Ok(()),
-                            _ => {
-                                self.on_input(&key, actions);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if last_tick.elapsed() >= TICK_RATE {
-                self.on_tick();
-                last_tick = Instant::now();
-            }
-        }
-    }
-
-    fn select_log(&mut self, id :i64) {
-        self.state.log_list_state.select(id);
-        self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
-        self.details_window.set_log(Data::get_log(id).unwrap());
-    }
-
-    fn deselect_all(&mut self) {
-        self.state.log_list_state.deselect();
-        self.state.world_map_state.selected_position = None;
-        self.details_window.set_log(Default::default());
-    }
-
-    fn on_tick(&mut self) {
-
-    }
-
-    fn process_actions(&mut self, actions :&mut ActionProcessor) {
-        while let Ok(action) = actions.peek() {
-            let event = UIEvents::Action(action);
-
-            let result = self.on_event(&event, actions);
-            if result != EventResult::Handled {
-                self.create_dialog.on_event(&event, actions);
-            }
-            actions.consume().expect("Failed to consume action");
-        }
-    }
-
-    fn zoom_map(&mut self, zoom :f64) {
-        let old_center = ui::WorldMap::map_center(&self.state.world_map_state);
-        self.state.world_map_state.zoom += zoom;
-        self.state.world_map_state.zoom = self.state.world_map_state.zoom.clamp(0.05, 5.0);
-        let new_center = ui::WorldMap::map_center(&self.state.world_map_state);
-
-        self.state.world_map_state.top_left.longitude += old_center.longitude - new_center.longitude;
-        self.state.world_map_state.top_left.latitude += old_center.latitude - new_center.latitude;
-    }
-
-    fn pop_error(&mut self, text :String) {
-        self.alert_dialog = Some(AlertDialog::new(
-            text,
-            AlertDialogButton::OK,
-            AlertDialogStyle::Error,
-            None)
-        );
-    }
-
-    fn pop_confirm(&mut self, text :String, style :AlertDialogStyle, action_after :Option<Actions>) {
-        self.alert_dialog = Some(AlertDialog::new(
-            text,
-            AlertDialogButton::YES | AlertDialogButton::NO,
-            style,
-            action_after
-        ));
     }
 }
