@@ -1,6 +1,5 @@
 use tui::{widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget}, layout::Rect, buffer::Buffer, text::Span, style::{Style, Color, Modifier} };
-
-use crate::{data::{Data, position::Position}};
+use crate::data::Data;
 
 
 
@@ -47,13 +46,6 @@ impl LogListState {
         all_logs[i].rowid.unwrap()
     }
 
-    pub fn selected_location(&self) -> Option<Position> {
-        match self.list_state.selected() {
-            Some(i) => Data::get_logs()[i].position(),
-            None => None,
-        }
-    }
-
     pub fn selected(&self) -> Option<i64> {
         match self.list_state.selected() {
             Some(i) => Data::get_logs()[i].rowid,
@@ -73,11 +65,11 @@ impl LogListState {
 
 
 
-pub struct LogList<'a> {
+pub struct LogListWidget<'a> {
     list :List<'a>,
 }
 
-impl<'a> Default for LogList<'a> {
+impl<'a> Default for LogListWidget<'a> {
     fn default() -> Self {
         let list_items :Vec<ListItem> = Data::get_logs()
             .iter()
@@ -87,7 +79,7 @@ impl<'a> Default for LogList<'a> {
             })
             .collect();
 
-        LogList {
+        LogListWidget {
             list: List::new(list_items)
                     .block(Block::default().title("Logs").borders(Borders::ALL))
                     .highlight_style(
@@ -101,14 +93,10 @@ impl<'a> Default for LogList<'a> {
     }
 }
 
-impl<'a> StatefulWidget for LogList<'a> {
+impl<'a> StatefulWidget for LogListWidget<'a> {
     type State = LogListState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        // match state.list_state.selected() {
-        //     Some(val) => println!("{}", val),
-        //     None => println!("None"),
-        // }
         self.list.render(area, buf, &mut state.list_state);
     }
 }

@@ -135,6 +135,7 @@ impl DialogInterface for CreateLogDialog {
                 self.open();
                 EventResult::Handled
             },
+
             _ => EventResult::NotHandled
         }
     }
@@ -207,12 +208,15 @@ impl CreateLogDialog {
                 }
             },
             None => {
-                actions.add(Actions::CreateLog(LogEntry {
+                let res = Data::insert_log(&LogEntry {
                     name: Some(self.state.name.clone()),
                     lat: self.state.latitude.parse().ok(),
                     long: self.state.longtitude.parse().ok(),
                     ..Default::default()
-                }))
+                });
+                if res.is_err() {
+                    actions.add(Actions::ShowError(format!("Error creating log: {:?}", res.err().unwrap())));
+                }
             }
         }
         self.close();

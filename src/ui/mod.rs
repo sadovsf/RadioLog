@@ -1,7 +1,6 @@
 mod log_list;
 pub use log_list::LogList;
 
-
 mod world_map;
 pub use world_map::{WorldMap, WorldMapState};
 
@@ -16,11 +15,7 @@ pub use alert_dialog::AlertDialogStyle;
 mod details_window;
 pub use self::details_window::DetailsWindow;
 
-use self::log_list::LogListState;
-
-
 #[derive(Default)]
 pub struct UIState {
-    pub log_list_state :LogListState,
     pub world_map_state :WorldMapState,
 }

@@ -21,6 +21,7 @@ impl App {
         let mut handler = UIHandler::default();
         handler.add(Box::new(DetailsWindow::default()));
         handler.add(Box::new(CreateLogDialog::default()));
+        handler.add(Box::new(ui::LogList::default()));
 
         App {
             state: UIState::default(),
@@ -31,7 +32,7 @@ impl App {
     }
 
     pub fn run(&mut self, terminal :&mut Terminal<CrosstermBackend<Stdout>>, actions :&mut ActionProcessor) -> Result<()> {
-        const TICK_RATE :Duration = std::time::Duration::from_millis(250);
+        const TICK_RATE :Duration = std::time::Duration::from_millis(60);
 
         let mut last_tick = Instant::now();
         loop {
@@ -85,14 +86,11 @@ impl App {
             )
             .split(f.size());
 
-        let log_block = ui::LogList::default();
-        f.render_stateful_widget(log_block, rects[0], &mut self.state.log_list_state);
-
         ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
         self.ui_elements.draw(f, actions);
 
         ///// Dialogs:
-        if let Some(alert) = self.alert_dialog.as_ref() {
+        if let Some(alert) = self.alert_dialog.as_mut() {
             alert.on_draw(f, actions);
         }
 
@@ -113,25 +111,6 @@ impl App {
                 self.ui_elements.send_event(&event, actions);
             }
         }
-    }
-
-    fn select_log(&mut self, id :i64, actions :&mut ActionProcessor) {
-        self.state.log_list_state.select(id);
-        self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
-        self.ui_elements.send_event(&UIEvents::Action(
-            &Actions::FocusLog(
-                Some(id)
-            )
-        ), actions);
-    }
-
-    fn deselect_all(&mut self, actions :&mut ActionProcessor) {
-        self.state.log_list_state.deselect();
-        self.state.world_map_state.selected_position = None;
-
-        self.ui_elements.send_event(&UIEvents::Action(
-            &Actions::FocusLog(None)
-        ), actions);
     }
 
     fn on_tick(&mut self) {
@@ -170,84 +149,45 @@ impl App {
 
 
 impl UIElement for App {
-    fn render(&self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
         RenderResult::NOOP
     }
 
-    fn on_action(&mut self, action :&Actions, actions :&mut ActionProcessor) -> EventResult {
+    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
         match action {
-            Actions::DeleteLog(log_id) => {
-                let deselect = self.state.log_list_state.selected() == Some(*log_id);
-                let res = Data::delete_log(*log_id);
-                if res.is_err() {
-                    self.pop_error(format!("Error deleting log: {}", res.err().unwrap()));
-                    return EventResult::Handled;
-                }
-
-                if deselect {
-                    self.state.world_map_state.selected_position = None;
-                    self.state.log_list_state.deselect();
-                }
-                EventResult::Handled
-            },
-
-            Actions::CreateLog(log_data) => {
-                let res = Data::insert_log(log_data);
-                if res.is_err() {
-                    self.pop_error(format!("Error creating log: {}", res.err().unwrap()));
-                    return EventResult::Handled;
-                }
-                self.select_log(res.unwrap(), actions);
-                EventResult::Handled
-            }
-
             Actions::ShowError(text) => {
                 self.pop_error(text.clone());
                 EventResult::Handled
             },
 
             Actions::FocusLog(log_id) => {
-                match log_id {
-                    Some(log_id) => self.select_log(*log_id, actions),
-                    None => self.deselect_all(actions)
-                };
-                EventResult::Handled
+                if let Some(log_id) = log_id {
+                    if let Some(log) = Data::get_log(*log_id) {
+                        self.state.world_map_state.selected_position = log.position();
+                    } else {
+                        self.state.world_map_state.selected_position = None;
+                    }
+                } else {
+                    self.state.world_map_state.selected_position = None;
+                }
+                EventResult::NotHandled
             }
+
+            Actions::ShowConfirm(msg, style, on_confirm) => {
+                self.pop_confirm(msg.clone(), style.clone(), Some((**on_confirm).clone()));
+                EventResult::Handled
+            },
 
             _ => EventResult::NotHandled
         }
     }
 
-    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
+    fn on_input(&mut self, key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
         if key.kind != KeyEventKind::Press {
             return EventResult::NotHandled;
         }
 
         match key.code {
-            KeyCode::Down => {
-                let id = self.state.log_list_state.next();
-                self.select_log(id, actions);
-                EventResult::Handled
-            },
-            KeyCode::Up => {
-                let id = self.state.log_list_state.previous();
-                self.select_log(id, actions);
-                EventResult::Handled
-            },
-
-            KeyCode::Left => {
-                self.deselect_all(actions);
-                EventResult::Handled
-            },
-
-            KeyCode::Enter => {
-                if let Some(log_id) = self.state.log_list_state.selected() {
-                    self.ui_elements.send_event(&UIEvents::Action(
-                        &Actions::EditLog(log_id)
-                    ), actions);
-                }
-                EventResult::Handled
-            },
 
             // Map controls:
             KeyCode::Char('+') => {
@@ -276,29 +216,6 @@ impl UIElement for App {
                 EventResult::Handled
             },
 
-            KeyCode::Delete => {
-                let to_del = self.state.log_list_state.selected();
-                if to_del.is_none() {
-                    return EventResult::NotHandled;
-                }
-
-                let log_info = Data::get_log(to_del.unwrap()).unwrap();
-                self.pop_confirm(
-                    format!("Are you sure you want to delete log '{}'?", log_info.name.unwrap()),
-                    AlertDialogStyle::Warning,
-                    Some(
-                        Actions::DeleteLog(to_del.unwrap())
-                    )
-                );
-                EventResult::Handled
-            },
-
-            KeyCode::Char('a') => {
-                self.ui_elements.send_event(&UIEvents::Action(
-                    &Actions::CreateLogWanted
-                ), actions);
-                EventResult::Handled
-            },
             _ => EventResult::NotHandled
         }
     }

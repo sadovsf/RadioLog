@@ -1,5 +1,3 @@
-use std::slice::{IterMut};
-
 use crate::{traits::{UIElement, UIEvents, EventResult}, actions::ActionProcessor, common_types::RenderFrame};
 
 
@@ -22,13 +20,14 @@ impl UIHandler {
         for element in &mut self.elements {
             if element.on_event(event, actions) == EventResult::Handled {
                 result = EventResult::Handled;
+                break;
             }
         }
         result
     }
 
     pub fn draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) {
-        for element in &self.elements {
+        for element in &mut self.elements {
             element.on_draw(f, actions);
         }
     }

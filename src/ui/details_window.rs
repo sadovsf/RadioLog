@@ -36,7 +36,7 @@ impl DetailsWindow {
 
 impl UIElement for DetailsWindow {
 
-    fn render(&self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
         if self.state.selected_log.is_none() {
             return RenderResult::NOOP;
         }
@@ -66,8 +66,8 @@ impl UIElement for DetailsWindow {
 
         let log = self.state.selected_log.as_ref().unwrap();
         self.render_info(f, "Name:", log.name.as_ref().unwrap(), &mut rect);
-        self.render_info(f, "Latitude:", &format!("{}", log.lat.unwrap()), &mut rect);
-        self.render_info(f, "Longitude:", &format!("{}", log.long.unwrap()), &mut rect);
+        self.render_info(f, "Latitude:", &format!("{}", log.lat.unwrap_or_default()), &mut rect);
+        self.render_info(f, "Longitude:", &format!("{}", log.long.unwrap_or_default()), &mut rect);
 
         match log.position() {
             Some(pos) => {

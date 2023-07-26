@@ -71,7 +71,7 @@ pub trait DialogInterface {
 
 impl<T> UIElement for T where T: DialogInterface {
 
-    fn on_draw(&self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
+    fn on_draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
         if self.is_opened() == false {
             return RenderResult::NOOP;
         }
@@ -89,7 +89,7 @@ impl<T> UIElement for T where T: DialogInterface {
         self._route_event(event, actions)
     }
 
-    fn render(&self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
         T::render(self, f, actions)
     }
 

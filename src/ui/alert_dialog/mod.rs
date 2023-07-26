@@ -16,6 +16,7 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Clone, Eq, PartialEq)]
 pub enum AlertDialogStyle {
     Default,
     Warning,

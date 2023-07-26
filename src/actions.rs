@@ -1,8 +1,5 @@
 use std::slice::Iter;
-
-use crossterm::event::Event;
-
-use crate::{data::LogEntry, traits::{UIEvents, EventResult, UIElement}, ui_handler::UIHandler};
+use crate::ui::AlertDialogStyle;
 
 
 
@@ -10,8 +7,9 @@ use crate::{data::LogEntry, traits::{UIEvents, EventResult, UIElement}, ui_handl
 #[derive(Clone, PartialEq)]
 pub enum Actions {
     DeleteLog(i64),
-    CreateLog(LogEntry),
+
     ShowError(String),
+    ShowConfirm(String, AlertDialogStyle, Box<Actions>),
 
     CreateLogWanted,
     FocusLog(Option<i64>),
