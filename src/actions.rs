@@ -1,7 +1,8 @@
-extern crate queues;
-use queues::*;
+use std::slice::Iter;
 
-use crate::data::LogEntry;
+use crossterm::event::Event;
+
+use crate::{data::LogEntry, traits::{UIEvents, EventResult, UIElement}, ui_handler::UIHandler};
 
 
 
@@ -11,37 +12,28 @@ pub enum Actions {
     DeleteLog(i64),
     CreateLog(LogEntry),
     ShowError(String),
+
+    CreateLogWanted,
+    FocusLog(Option<i64>),
+    EditLog(i64)
 }
 
 
-
+#[derive(Default, Clone)]
 pub struct ActionProcessor {
-    pending :Queue<Actions>
+    pending :Vec<Actions>
 }
-
-impl Default for ActionProcessor {
-    fn default() -> Self {
-        Self {
-            pending: Queue::new()
-        }
-    }
-}
-
-type Result<'a, T> = std::result::Result<T, &'a str>;
 
 impl ActionProcessor {
     pub fn add(&mut self, action :Actions) {
-        let res = self.pending.add(action);
-        if res.is_err() {
-            panic!("Error adding action to queue: {}", res.err().unwrap());
-        }
+        self.pending.push(action);
     }
 
-    pub fn peek(&self) -> Result<Actions> {
-        self.pending.peek()
+    pub fn iter(&self) -> Iter<Actions> {
+        self.pending.iter()
     }
 
-    pub fn consume(&mut self) -> Result<Actions> {
-        self.pending.remove()
+    pub fn clear(&mut self) {
+        self.pending.clear();
     }
 }

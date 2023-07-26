@@ -4,7 +4,7 @@ use unicode_width::UnicodeWidthStr;
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Span};
 
-use crate::{data::{LogEntry}, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::{ActionProcessor, Actions}, common_types::RenderFrame};
+use crate::{data::{LogEntry, Data}, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::{ActionProcessor, Actions}, common_types::RenderFrame};
 
 use turbosql::Turbosql;
 
@@ -67,7 +67,7 @@ impl DialogInterface for CreateLogDialog {
         self.set_opened(false);
     }
 
-    fn render(&mut self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
 
         let area = DialogHelpers::center_rect_perc(50, 35, f.size());
         f.render_widget(Clear, area); //this clears out the background
@@ -121,6 +121,22 @@ impl DialogInterface for CreateLogDialog {
             _ => {}
         };
         EventResult::Handled
+    }
+
+    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
+        match action {
+            Actions::EditLog(rowid) => {
+                if let Some(log) = Data::get_log(*rowid) {
+                    self.edit(log);
+                }
+                EventResult::Handled
+            },
+            Actions::CreateLogWanted => {
+                self.open();
+                EventResult::Handled
+            },
+            _ => EventResult::NotHandled
+        }
     }
 }
 

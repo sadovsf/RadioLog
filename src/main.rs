@@ -5,6 +5,7 @@ mod map_api;
 mod traits;
 mod actions;
 mod common_types;
+mod ui_handler;
 
 use actions::ActionProcessor;
 use app::App;

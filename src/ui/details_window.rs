@@ -1,6 +1,5 @@
-use tui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::{Span}};
-
-use crate::{traits::{UIElement, RenderResult}, data::{LogEntry, Data}, actions::ActionProcessor, common_types::RenderFrame};
+use tui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::Span};
+use crate::{traits::{UIElement, RenderResult, EventResult}, data::{LogEntry, Data}, actions::{ActionProcessor, Actions}, common_types::RenderFrame};
 
 
 
@@ -37,7 +36,7 @@ impl DetailsWindow {
 
 impl UIElement for DetailsWindow {
 
-    fn render(&mut self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
         if self.state.selected_log.is_none() {
             return RenderResult::NOOP;
         }
@@ -83,5 +82,18 @@ impl UIElement for DetailsWindow {
         }
 
         RenderResult::Rendered
+    }
+
+    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> crate::traits::EventResult {
+        match action {
+            Actions::FocusLog(log_id) => {
+                match log_id {
+                    Some(log_id) =>self.set_log(Data::get_log(*log_id).unwrap()),
+                    None => self.set_log(Default::default())
+                }
+                EventResult::NotHandled
+            }
+            _ => EventResult::NOOP
+        }
     }
 }

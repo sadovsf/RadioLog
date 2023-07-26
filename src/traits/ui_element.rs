@@ -14,16 +14,16 @@ pub enum RenderResult {
 }
 
 #[derive(PartialEq)]
-pub enum UIEvents {
+pub enum UIEvents<'a> {
     Input(KeyEvent),
-    Action(Actions),
+    Action(&'a Actions),
 }
 
 pub trait UIElement {
-    fn render(&mut self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult;
+    fn render(&self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult;
 
 
-    fn on_draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
+    fn on_draw(&self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
         self.render(f, actions)
     }
 

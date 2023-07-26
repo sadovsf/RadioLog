@@ -3,28 +3,30 @@ use std::{time::{Instant, Duration}, io::Stdout};
 use crossterm::{event::{Event, self, KeyCode, KeyEventKind, KeyEvent}, Result};
 use tui::{layout::{Direction, Layout, Constraint}, Terminal, backend::CrosstermBackend };
 
-use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, DetailsWindow}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame};
+use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, DetailsWindow}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame, ui_handler::UIHandler};
 use crate::traits::UIElement;
-use crate::traits::DialogInterface;
 
 
 
 pub struct App {
     state: UIState,
 
-    details_window :DetailsWindow,
-    create_dialog :CreateLogDialog,
+    ui_elements :UIHandler,
     alert_dialog :Option<AlertDialog>,
 }
 
 
 impl App {
     pub fn new() -> App {
+        let mut handler = UIHandler::default();
+        handler.add(Box::new(DetailsWindow::default()));
+        handler.add(Box::new(CreateLogDialog::default()));
+
         App {
             state: UIState::default(),
-            details_window: DetailsWindow::default(),
-            create_dialog: CreateLogDialog::default(),
+
             alert_dialog: None,
+            ui_elements: handler,
         }
     }
 
@@ -34,7 +36,7 @@ impl App {
         let mut last_tick = Instant::now();
         loop {
             terminal.draw(|f| {
-                self.render(f, actions);
+                self.draw_app(f, actions);
             })?;
 
             let timeout = TICK_RATE
@@ -50,7 +52,7 @@ impl App {
                     };
 
                     if result != EventResult::Handled {
-                        result = self.create_dialog.on_event(&event, actions);
+                        result = self.ui_elements.send_event(&event, actions);
                     }
 
                     if result != EventResult::Handled {
@@ -71,32 +73,69 @@ impl App {
         }
     }
 
-    fn select_log(&mut self, id :i64) {
-        self.state.log_list_state.select(id);
-        self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
-        self.details_window.set_log(Data::get_log(id).unwrap());
+    fn draw_app(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) {
+        let rects = Layout::default()
+            .direction(Direction::Horizontal)
+            .margin(1)
+            .constraints(
+                [
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(80),
+                ].as_ref()
+            )
+            .split(f.size());
+
+        let log_block = ui::LogList::default();
+        f.render_stateful_widget(log_block, rects[0], &mut self.state.log_list_state);
+
+        ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
+        self.ui_elements.draw(f, actions);
+
+        ///// Dialogs:
+        if let Some(alert) = self.alert_dialog.as_ref() {
+            alert.on_draw(f, actions);
+        }
+
+
+
+        ///// Accumulated actions processing:
+        self.process_actions(actions);
     }
 
-    fn deselect_all(&mut self) {
+    fn process_actions(&mut self, actions :&mut ActionProcessor) {
+        let local_actions = actions.clone();
+        actions.clear();
+
+        for action in local_actions.iter() {
+            let event = UIEvents::Action(action);
+            let result = self.on_event(&event, actions);
+            if result != EventResult::Handled {
+                self.ui_elements.send_event(&event, actions);
+            }
+        }
+    }
+
+    fn select_log(&mut self, id :i64, actions :&mut ActionProcessor) {
+        self.state.log_list_state.select(id);
+        self.state.world_map_state.selected_position = self.state.log_list_state.selected_location();
+        self.ui_elements.send_event(&UIEvents::Action(
+            &Actions::FocusLog(
+                Some(id)
+            )
+        ), actions);
+    }
+
+    fn deselect_all(&mut self, actions :&mut ActionProcessor) {
         self.state.log_list_state.deselect();
         self.state.world_map_state.selected_position = None;
-        self.details_window.set_log(Default::default());
+
+        self.ui_elements.send_event(&UIEvents::Action(
+            &Actions::FocusLog(None)
+        ), actions);
     }
 
     fn on_tick(&mut self) {
 
-    }
-
-    fn process_actions(&mut self, actions :&mut ActionProcessor) {
-        while let Ok(action) = actions.peek() {
-            let event = UIEvents::Action(action);
-
-            let result = self.on_event(&event, actions);
-            if result != EventResult::Handled {
-                self.create_dialog.on_event(&event, actions);
-            }
-            actions.consume().expect("Failed to consume action");
-        }
     }
 
     fn zoom_map(&mut self, zoom :f64) {
@@ -131,39 +170,11 @@ impl App {
 
 
 impl UIElement for App {
-    fn render(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
-        let rects = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints(
-                [
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(80),
-                ].as_ref()
-            )
-            .split(f.size());
-
-        let log_block = ui::LogList::default();
-        f.render_stateful_widget(log_block, rects[0], &mut self.state.log_list_state);
-
-        ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
-        self.details_window.on_draw(f, actions);
-
-        ///// Dialogs:
-        self.create_dialog.on_draw(f, actions);
-        if let Some(alert) = self.alert_dialog.as_mut() {
-            alert.on_draw(f, actions);
-        }
-
-
-
-        ///// Accumulated actions processing:
-        self.process_actions(actions);
-
-        RenderResult::Rendered
+    fn render(&self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+        RenderResult::NOOP
     }
 
-    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
+    fn on_action(&mut self, action :&Actions, actions :&mut ActionProcessor) -> EventResult {
         match action {
             Actions::DeleteLog(log_id) => {
                 let deselect = self.state.log_list_state.selected() == Some(*log_id);
@@ -186,7 +197,7 @@ impl UIElement for App {
                     self.pop_error(format!("Error creating log: {}", res.err().unwrap()));
                     return EventResult::Handled;
                 }
-                self.select_log(res.unwrap());
+                self.select_log(res.unwrap(), actions);
                 EventResult::Handled
             }
 
@@ -194,10 +205,20 @@ impl UIElement for App {
                 self.pop_error(text.clone());
                 EventResult::Handled
             },
+
+            Actions::FocusLog(log_id) => {
+                match log_id {
+                    Some(log_id) => self.select_log(*log_id, actions),
+                    None => self.deselect_all(actions)
+                };
+                EventResult::Handled
+            }
+
+            _ => EventResult::NotHandled
         }
     }
 
-    fn on_input(&mut self, key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
+    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
         if key.kind != KeyEventKind::Press {
             return EventResult::NotHandled;
         }
@@ -205,25 +226,25 @@ impl UIElement for App {
         match key.code {
             KeyCode::Down => {
                 let id = self.state.log_list_state.next();
-                self.select_log(id);
+                self.select_log(id, actions);
                 EventResult::Handled
             },
             KeyCode::Up => {
                 let id = self.state.log_list_state.previous();
-                self.select_log(id);
+                self.select_log(id, actions);
                 EventResult::Handled
             },
 
             KeyCode::Left => {
-                self.deselect_all();
+                self.deselect_all(actions);
                 EventResult::Handled
             },
 
             KeyCode::Enter => {
-                let id = self.state.log_list_state.selected().unwrap();
-                let log = Data::get_log(id);
-                if log.is_some() {
-                    self.create_dialog.edit(log.unwrap());
+                if let Some(log_id) = self.state.log_list_state.selected() {
+                    self.ui_elements.send_event(&UIEvents::Action(
+                        &Actions::EditLog(log_id)
+                    ), actions);
                 }
                 EventResult::Handled
             },
@@ -273,7 +294,9 @@ impl UIElement for App {
             },
 
             KeyCode::Char('a') => {
-                self.create_dialog.open();
+                self.ui_elements.send_event(&UIEvents::Action(
+                    &Actions::CreateLogWanted
+                ), actions);
                 EventResult::Handled
             },
             _ => EventResult::NotHandled
