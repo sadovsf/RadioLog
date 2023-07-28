@@ -1,5 +1,5 @@
 use crossterm::event::KeyEvent;
-use crate::{actions::{Actions, ActionProcessor}, common_types::RenderFrame};
+use crate::{actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 #[derive(PartialEq, Eq)]
 pub enum EventResult {
@@ -21,29 +21,29 @@ pub enum UIEvents<'a> {
 }
 
 pub trait UIElement {
-    fn render(&mut self, _f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult;
+    fn render(&mut self, _f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult;
 
 
-    fn on_draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
-        self.render(f, actions)
+    fn on_draw(&mut self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
+        self.render(f, _app_ctx)
     }
 
-    fn on_event(&mut self, event :&UIEvents, actions :&mut ActionProcessor) -> EventResult {
-        self._route_event(event, actions)
+    fn on_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
+        self._route_event(event, app_ctx)
     }
 
-    fn _route_event(&mut self, event :&UIEvents, actions :&mut ActionProcessor) -> EventResult {
+    fn _route_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
         match event {
-            UIEvents::Input(key) => self.on_input(key, actions),
-            UIEvents::Action(action) => self.on_action(action, actions),
+            UIEvents::Input(key) => self.on_input(key, app_ctx),
+            UIEvents::Action(action) => self.on_action(action, app_ctx),
         }
     }
 
-    fn on_input(&mut self, _key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
+    fn on_input(&mut self, _key :&KeyEvent, _app_ctx :&mut AppContext) -> EventResult {
         EventResult::NotHandled
     }
 
-    fn on_action(&mut self, _action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
+    fn on_action(&mut self, _action :&Actions, _app_ctx :&mut AppContext) -> EventResult {
         EventResult::NotHandled
     }
 }

@@ -1,7 +1,7 @@
 use crossterm::event::KeyEvent;
-use tui::{layout::{Rect, Layout, Direction, Constraint}};
+use tui::layout::{Rect, Layout, Direction, Constraint};
 
-use crate::{actions::{ActionProcessor, Actions}, common_types::RenderFrame};
+use crate::{actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 use super::{UIElement, RenderResult, EventResult, UIEvents};
 
@@ -51,13 +51,13 @@ pub trait DialogInterface {
     fn set_opened(&mut self, opened :bool);
     fn is_opened(&self) -> bool;
 
-    fn render(&self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult;
+    fn render(&self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult;
 
-    fn on_input(&mut self, _key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
+    fn on_input(&mut self, _key :&KeyEvent, _app_ctx :&mut AppContext) -> EventResult {
         EventResult::NotHandled
     }
 
-    fn on_action(&mut self, _action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
+    fn on_action(&mut self, _action :&Actions, _app_ctx :&mut AppContext) -> EventResult {
         EventResult::NotHandled
     }
 
@@ -71,33 +71,33 @@ pub trait DialogInterface {
 
 impl<T> UIElement for T where T: DialogInterface {
 
-    fn on_draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
+    fn on_draw(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
         if self.is_opened() == false {
             return RenderResult::NOOP;
         }
-        self.render(f, actions)
+        self.render(f, app_ctx)
     }
 
-    fn on_event(&mut self, event :&UIEvents, actions :&mut ActionProcessor) -> EventResult {
+    fn on_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
         if self.is_opened() == false {
             return match event {
-                UIEvents::Action(_) => self._route_event(event, actions)
+                UIEvents::Action(_) => self._route_event(event, app_ctx)
                 , _ => EventResult::NotHandled
             }
         }
 
-        self._route_event(event, actions)
+        self._route_event(event, app_ctx)
     }
 
-    fn render(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) -> RenderResult {
-        T::render(self, f, actions)
+    fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
+        T::render(self, f, app_ctx)
     }
 
-    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
-        T::on_input(self, key, actions)
+    fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {
+        T::on_input(self, key, app_ctx)
     }
 
-    fn on_action(&mut self, action :&Actions, actions :&mut ActionProcessor) -> EventResult {
-        T::on_action(self, action, actions)
+    fn on_action(&mut self, action :&Actions, app_ctx :&mut AppContext) -> EventResult {
+        T::on_action(self, action, app_ctx)
     }
 }

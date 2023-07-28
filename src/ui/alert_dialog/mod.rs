@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use tui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
-use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult}, actions::{Actions, ActionProcessor}, common_types::RenderFrame};
+use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 
 bitflags::bitflags! {
@@ -136,7 +136,7 @@ impl DialogInterface for AlertDialog {
         self.state.opened
     }
 
-    fn render(&self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
         let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, f.size());
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
@@ -204,7 +204,7 @@ impl DialogInterface for AlertDialog {
         RenderResult::Rendered
     }
 
-    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
+    fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {
         match key.code {
             KeyCode::Esc => {
                 self.close();
@@ -212,7 +212,7 @@ impl DialogInterface for AlertDialog {
             },
             KeyCode::Enter => {
                 if self.action_on_close.is_some() {
-                    actions.add(self.action_on_close.take().unwrap());
+                    app_ctx.actions.add(self.action_on_close.take().unwrap());
                 }
                 self.close();
                 EventResult::Handled

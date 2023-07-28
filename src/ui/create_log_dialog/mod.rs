@@ -5,9 +5,7 @@ use unicode_width::UnicodeWidthStr;
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Span};
 
-use crate::{data::{LogEntry, Data}, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::{ActionProcessor, Actions}, common_types::RenderFrame};
-
-use turbosql::Turbosql;
+use crate::{data::LogEntry, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 mod input_fields;
 use input_fields::InputFields;
@@ -44,108 +42,12 @@ impl Default for CreateLogDialogState {
 #[derive(Default)]
 pub struct CreateLogDialog {
     state: CreateLogDialogState,
-    log_to_edit: Option<LogEntry>,
+    log_to_edit: Option<i64>,
 }
-
-
-impl DialogInterface for CreateLogDialog {
-    fn set_opened(&mut self, opened :bool) {
-        self.state.opened = opened;
-    }
-
-    fn is_opened(&self) -> bool {
-        self.state.opened
-    }
-
-    fn open(&mut self) {
-        self.log_to_edit = None;
-        self.set_opened(true);
-    }
-
-    fn close(&mut self) {
-        self.clear_form();
-        self.log_to_edit = None;
-        self.set_opened(false);
-    }
-
-    fn render(&self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
-
-        let area = DialogHelpers::center_rect_perc(50, 35, f.size());
-        f.render_widget(Clear, area); //this clears out the background
-        f.render_widget(
-            Block::default().title("Create log").borders(Borders::ALL),
-            area
-        );
-
-        let mut constraints = vec!();
-        for _ in 0..InputFields::LAST as u8 {
-            constraints.push(Constraint::Length(5));
-        }
-        constraints.push(Constraint::Length(1));
-
-
-        let popup_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .constraints(constraints.as_ref())
-            .split(area);
-
-        for idx in 0..InputFields::LAST as u8 {
-            let input = InputFields::from(idx);
-            let field_content = input.to_field(&self.state);
-
-            self.create_input(
-                f,
-                field_content,
-                input,
-                popup_layout[idx as usize]
-            );
-        };
-
-        RenderResult::Rendered
-    }
-
-    fn on_input(&mut self, key :&KeyEvent, actions :&mut ActionProcessor) -> EventResult {
-        match key.code {
-            KeyCode::Esc => self.close(),
-            KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
-            KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
-            KeyCode::Delete => self.clear_form(),
-            KeyCode::Enter => self.save(actions),
-            KeyCode::Backspace => {
-                self.state.current_input.to_field_mut(&mut self.state).pop();
-            },
-            KeyCode::Char(c) => {
-                self.state.current_input.to_field_mut(&mut self.state).push(c);
-            },
-            KeyCode::PageDown => self.find_location(&self.state.name.clone(), actions),
-            _ => {}
-        };
-        EventResult::Handled
-    }
-
-    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> EventResult {
-        match action {
-            Actions::EditLog(rowid) => {
-                if let Some(log) = Data::get_log(*rowid) {
-                    self.edit(log);
-                }
-                EventResult::Handled
-            },
-            Actions::CreateLogWanted => {
-                self.open();
-                EventResult::Handled
-            },
-
-            _ => EventResult::NotHandled
-        }
-    }
-}
-
 
 
 impl CreateLogDialog {
-    pub fn edit(&mut self, log :LogEntry) {
+    pub fn edit(&mut self, log :&LogEntry) {
         if log.rowid.is_none() {
             return;
         }
@@ -154,7 +56,7 @@ impl CreateLogDialog {
         self.state.name = log.name.clone().unwrap_or("".to_string());
         self.state.latitude = log.lat.map(|v| v.to_string()).unwrap_or("".to_string());
         self.state.longtitude = log.long.map(|v| v.to_string()).unwrap_or("".to_string());
-        self.log_to_edit = Some(log);
+        self.log_to_edit = log.rowid;
     }
 
     fn create_input<'a, B: Backend>(&'a self, f :&mut Frame<B>, content :&'a String, field :InputFields, area :Rect) {
@@ -192,27 +94,31 @@ impl CreateLogDialog {
     }
 
 
-    fn save(&mut self, actions :&mut ActionProcessor) {
+    fn save(&mut self, app_ctx :&mut AppContext) {
         match self.log_to_edit.as_mut() {
-            Some(log) => {
-                log.name = Some(self.state.name.clone());
-                log.lat = self.state.latitude.parse().ok();
-                log.long = self.state.longtitude.parse().ok();
-                let result = log.update();
+            Some(row_id) => {
+
+                let result = app_ctx.data.logs.edit(LogEntry{
+                    rowid: Some(*row_id),
+                    name: Some(self.state.name.clone()),
+                    lat: self.state.latitude.parse().ok(),
+                    long: self.state.longtitude.parse().ok(),
+                    ..Default::default()
+                });
                 if result.is_err() {
-                    actions.add(Actions::ShowError(format!("Error: {:?}", result.err().unwrap())));
+                    app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", result.err().unwrap())));
                     return;
                 }
             },
             None => {
-                let res = Data::insert_log(&LogEntry {
+                let res = app_ctx.data.logs.add(LogEntry{
                     name: Some(self.state.name.clone()),
                     lat: self.state.latitude.parse().ok(),
                     long: self.state.longtitude.parse().ok(),
                     ..Default::default()
                 });
                 if res.is_err() {
-                    actions.add(Actions::ShowError(format!("Error creating log: {:?}", res.err().unwrap())));
+                    app_ctx.actions.add(Actions::ShowError(format!("Error creating log: {:?}", res.err().unwrap())));
                 }
             }
         }
@@ -231,16 +137,16 @@ impl CreateLogDialog {
 
 
 
-    fn find_location(&mut self, name :&String, actions :&mut ActionProcessor) {
+    fn find_location(&mut self, name :&String, app_ctx :&mut AppContext) {
         let results = OnlineMap::query_location(&self.state.name);
         if results.is_err() {
-            actions.add(Actions::ShowError(format!("Error: {:?}", results.err().unwrap())));
+            app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", results.err().unwrap())));
             return;
         }
 
         let list = results.unwrap();
         if list.len() == 0 {
-            actions.add(Actions::ShowError(format!("Error: No locations found for {}", name)));
+            app_ctx.actions.add(Actions::ShowError(format!("Error: No locations found for {}", name)));
             return;
         }
 
@@ -248,5 +154,101 @@ impl CreateLogDialog {
         self.state.name = top_location.name.clone();
         self.state.latitude = top_location.latitude.to_string();
         self.state.longtitude = top_location.longitude.to_string();
+    }
+}
+
+
+
+impl DialogInterface for CreateLogDialog {
+    fn set_opened(&mut self, opened :bool) {
+        self.state.opened = opened;
+    }
+
+    fn is_opened(&self) -> bool {
+        self.state.opened
+    }
+
+    fn open(&mut self) {
+        self.log_to_edit = None;
+        self.set_opened(true);
+    }
+
+    fn close(&mut self) {
+        self.clear_form();
+        self.log_to_edit = None;
+        self.set_opened(false);
+    }
+
+    fn render(&self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
+
+        let area = DialogHelpers::center_rect_perc(50, 35, f.size());
+        f.render_widget(Clear, area); //this clears out the background
+        f.render_widget(
+            Block::default().title("Create log").borders(Borders::ALL),
+            area
+        );
+
+        let mut constraints = vec!();
+        for _ in 0..InputFields::LAST as u8 {
+            constraints.push(Constraint::Length(5));
+        }
+        constraints.push(Constraint::Length(1));
+
+
+        let popup_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(constraints.as_ref())
+            .split(area);
+
+        for idx in 0..InputFields::LAST as u8 {
+            let input = InputFields::from(idx);
+            let field_content = input.to_field(&self.state);
+
+            self.create_input(
+                f,
+                field_content,
+                input,
+                popup_layout[idx as usize]
+            );
+        };
+
+        RenderResult::Rendered
+    }
+
+    fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {
+        match key.code {
+            KeyCode::Esc => self.close(),
+            KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
+            KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
+            KeyCode::Delete => self.clear_form(),
+            KeyCode::Enter => self.save(app_ctx),
+            KeyCode::Backspace => {
+                self.state.current_input.to_field_mut(&mut self.state).pop();
+            },
+            KeyCode::Char(c) => {
+                self.state.current_input.to_field_mut(&mut self.state).push(c);
+            },
+            KeyCode::PageDown => self.find_location(&self.state.name.clone(), app_ctx),
+            _ => {}
+        };
+        EventResult::Handled
+    }
+
+    fn on_action(&mut self, action :&Actions, app_ctx :&mut AppContext) -> EventResult {
+        match action {
+            Actions::EditLog(rowid) => {
+                if let Some(log) = app_ctx.data.logs.get(*rowid) {
+                    self.edit(log);
+                }
+                EventResult::Handled
+            },
+            Actions::CreateLogWanted => {
+                self.open();
+                EventResult::Handled
+            },
+
+            _ => EventResult::NotHandled
+        }
     }
 }

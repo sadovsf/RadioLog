@@ -6,9 +6,10 @@ mod traits;
 mod actions;
 mod common_types;
 mod ui_handler;
+mod app_context;
 
-use actions::ActionProcessor;
 use app::App;
+use app_context::AppContext;
 
 
 
@@ -33,6 +34,8 @@ fn reset_terminal() -> CrosstermResult<()> {
 }
 
 fn main() -> Result<(), io::Error> {
+    let app_context = AppContext::default();
+
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -42,10 +45,8 @@ fn main() -> Result<(), io::Error> {
 
 
     // setup app
-    let mut action_processor = ActionProcessor::default();
-
     let mut app = App::new();
-    let result = app.run(&mut terminal, &mut action_processor);
+    let result = app.run(&mut terminal, app_context);
 
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {

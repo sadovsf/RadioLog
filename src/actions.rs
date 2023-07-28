@@ -13,7 +13,7 @@ pub enum Actions {
 
     CreateLogWanted,
     FocusLog(Option<i64>),
-    EditLog(i64)
+    EditLog(i64),
 }
 
 

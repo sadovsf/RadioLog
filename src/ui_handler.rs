@@ -1,4 +1,4 @@
-use crate::{traits::{UIElement, UIEvents, EventResult}, actions::ActionProcessor, common_types::RenderFrame};
+use crate::{traits::{UIElement, UIEvents, EventResult}, common_types::RenderFrame, app_context::AppContext};
 
 
 
@@ -15,10 +15,10 @@ impl UIHandler {
         self.elements.len() - 1
     }
 
-    pub fn send_event(&mut self, event :&UIEvents, actions :&mut ActionProcessor) -> EventResult {
+    pub fn send_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
         let mut result = EventResult::NotHandled;
         for element in &mut self.elements {
-            if element.on_event(event, actions) == EventResult::Handled {
+            if element.on_event(event, app_ctx) == EventResult::Handled {
                 result = EventResult::Handled;
                 break;
             }
@@ -26,9 +26,9 @@ impl UIHandler {
         result
     }
 
-    pub fn draw(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) {
+    pub fn draw(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) {
         for element in &mut self.elements {
-            element.on_draw(f, actions);
+            element.on_draw(f, app_ctx);
         }
     }
 }

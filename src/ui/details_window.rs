@@ -1,5 +1,5 @@
 use tui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::Span};
-use crate::{traits::{UIElement, RenderResult, EventResult}, data::{LogEntry, Data}, actions::{ActionProcessor, Actions}, common_types::RenderFrame};
+use crate::{traits::{UIElement, RenderResult, EventResult}, data::LogEntry, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 
 
@@ -36,7 +36,7 @@ impl DetailsWindow {
 
 impl UIElement for DetailsWindow {
 
-    fn render(&mut self, f :&mut RenderFrame, _actions :&mut ActionProcessor) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
         if self.state.selected_log.is_none() {
             return RenderResult::NOOP;
         }
@@ -71,7 +71,7 @@ impl UIElement for DetailsWindow {
 
         match log.position() {
             Some(pos) => {
-                let self_pos = Data::get_config().own_position;
+                let self_pos = &app_ctx.data.config.own_position;
                 self.render_info(f, "QTH: ", &pos.to_qth(), &mut rect);
                 self.render_info(f, "Distance: ", &format!("{:.2} km", self_pos.distance_to(&pos).km()), &mut rect);
             },
@@ -84,11 +84,11 @@ impl UIElement for DetailsWindow {
         RenderResult::Rendered
     }
 
-    fn on_action(&mut self, action :&Actions, _actions :&mut ActionProcessor) -> crate::traits::EventResult {
+    fn on_action(&mut self, action :&Actions, app_ctx :&mut AppContext) -> crate::traits::EventResult {
         match action {
             Actions::FocusLog(log_id) => {
                 match log_id {
-                    Some(log_id) =>self.set_log(Data::get_log(*log_id).unwrap()),
+                    Some(log_id) => self.set_log(app_ctx.data.logs.get(*log_id).unwrap().clone()),
                     None => self.set_log(Default::default())
                 }
                 EventResult::NotHandled

@@ -14,7 +14,10 @@
                     "--bin=radio_log"
                 ]
             },
-            "args": []
+            "args": [],
+            "env": {
+                "RUST_BACKTRACE": "1"
+            }
         }
     ]
 }
