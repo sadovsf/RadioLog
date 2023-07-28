@@ -153,24 +153,34 @@ impl DialogInterface for AlertDialog {
             area
         );
 
-        let mut layout = Layout::default()
+        let [_, msg_rect, btns_rect] = *Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
             .constraints([
+                Constraint::Length(1),
                 Constraint::Min(3),
                 Constraint::Length(3),
             ].as_ref())
-            .split(area);
+            .split(area)
+        else {
+            return RenderResult::Failed;
+        };
 
-        layout[0].y += 1;
-        layout[0].height -= 1;
+        let [_, msg_rect] = *Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(5),
+                Constraint::Percentage(100)
+            ].as_ref())
+            .split(msg_rect)
+        else {
+            return RenderResult::Failed;
+        };
 
-        layout[0].x += 5;
-        layout[0].width -= 5;
         f.render_widget(
             Paragraph::new(self.message.clone())
                 .style(Style::default().fg(Color::White)),
-            layout[0]
+                msg_rect
         );
 
 
@@ -185,7 +195,7 @@ impl DialogInterface for AlertDialog {
             .horizontal_margin(3)
             .vertical_margin(1)
             .constraints(constr_array.as_ref())
-            .split(layout[1]);
+            .split(btns_rect);
 
         for (index, button) in self.buttons.iter().enumerate() {
             self.render_button(f, button, button_layout[index]);

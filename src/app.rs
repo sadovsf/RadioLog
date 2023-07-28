@@ -1,16 +1,14 @@
 use std::{time::{Instant, Duration}, io::Stdout};
 
-use crossterm::{event::{Event, self, KeyCode, KeyEventKind, KeyEvent}, Result};
-use tui::{layout::{Direction, Layout, Constraint}, Terminal, backend::CrosstermBackend };
+use crossterm::{event::{Event, self, KeyCode}, Result};
+use tui::{Terminal, backend::CrosstermBackend };
 
-use crate::{ui::{self, UIState, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, DetailsWindow}, data::Data, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame, ui_handler::UIHandler};
+use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle}, actions::{Actions, ActionProcessor}, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame, ui_handler::UIHandler};
 use crate::traits::UIElement;
 
 
 
 pub struct App {
-    state: UIState,
-
     ui_elements :UIHandler,
     alert_dialog :Option<AlertDialog>,
 }
@@ -19,13 +17,12 @@ pub struct App {
 impl App {
     pub fn new() -> App {
         let mut handler = UIHandler::default();
-        handler.add(Box::new(DetailsWindow::default()));
         handler.add(Box::new(CreateLogDialog::default()));
         handler.add(Box::new(ui::LogList::default()));
+        handler.add(Box::new(ui::WorldMap::default()));
+        handler.add(Box::new(ui::DetailsWindow::default()));
 
         App {
-            state: UIState::default(),
-
             alert_dialog: None,
             ui_elements: handler,
         }
@@ -56,13 +53,8 @@ impl App {
                         result = self.ui_elements.send_event(&event, actions);
                     }
 
-                    if result != EventResult::Handled {
-                        match key.code {
-                            KeyCode::Esc => return Ok(()),
-                            _ => {
-                                self.on_input(&key, actions);
-                            }
-                        }
+                    if result != EventResult::Handled && key.code == KeyCode::Esc  {
+                        return Ok(()); // Exit app
                     }
                 }
             }
@@ -75,32 +67,20 @@ impl App {
     }
 
     fn draw_app(&mut self, f :&mut RenderFrame, actions :&mut ActionProcessor) {
-        let rects = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints(
-                [
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(80),
-                ].as_ref()
-            )
-            .split(f.size());
-
-        ui::WorldMap::render(f, rects[1], &self.state.world_map_state);
+        ///// Draw elements:
         self.ui_elements.draw(f, actions);
 
-        ///// Dialogs:
+        ///// Render common dialogs on top:
         if let Some(alert) = self.alert_dialog.as_mut() {
             alert.on_draw(f, actions);
         }
 
-
-
-        ///// Accumulated actions processing:
+        ///// Process accumulated actions:
         self.process_actions(actions);
     }
 
     fn process_actions(&mut self, actions :&mut ActionProcessor) {
+        // Make local copy to avoid writing into actions while iterating.
         let local_actions = actions.clone();
         actions.clear();
 
@@ -115,16 +95,6 @@ impl App {
 
     fn on_tick(&mut self) {
 
-    }
-
-    fn zoom_map(&mut self, zoom :f64) {
-        let old_center = ui::WorldMap::map_center(&self.state.world_map_state);
-        self.state.world_map_state.zoom += zoom;
-        self.state.world_map_state.zoom = self.state.world_map_state.zoom.clamp(0.05, 5.0);
-        let new_center = ui::WorldMap::map_center(&self.state.world_map_state);
-
-        self.state.world_map_state.top_left.longitude += old_center.longitude - new_center.longitude;
-        self.state.world_map_state.top_left.latitude += old_center.latitude - new_center.latitude;
     }
 
     fn pop_error(&mut self, text :String) {
@@ -160,59 +130,8 @@ impl UIElement for App {
                 EventResult::Handled
             },
 
-            Actions::FocusLog(log_id) => {
-                if let Some(log_id) = log_id {
-                    if let Some(log) = Data::get_log(*log_id) {
-                        self.state.world_map_state.selected_position = log.position();
-                    } else {
-                        self.state.world_map_state.selected_position = None;
-                    }
-                } else {
-                    self.state.world_map_state.selected_position = None;
-                }
-                EventResult::NotHandled
-            }
-
             Actions::ShowConfirm(msg, style, on_confirm) => {
                 self.pop_confirm(msg.clone(), style.clone(), Some((**on_confirm).clone()));
-                EventResult::Handled
-            },
-
-            _ => EventResult::NotHandled
-        }
-    }
-
-    fn on_input(&mut self, key :&KeyEvent, _actions :&mut ActionProcessor) -> EventResult {
-        if key.kind != KeyEventKind::Press {
-            return EventResult::NotHandled;
-        }
-
-        match key.code {
-
-            // Map controls:
-            KeyCode::Char('+') => {
-                self.zoom_map(-0.05);
-                EventResult::Handled
-            },
-            KeyCode::Char('-') => {
-                self.zoom_map(0.05);
-                EventResult::Handled
-            },
-
-            KeyCode::Char('8') => {
-                self.state.world_map_state.top_left.latitude += 5.0;
-                EventResult::Handled
-            },
-            KeyCode::Char('5') => {
-                self.state.world_map_state.top_left.latitude -= 5.0;
-                EventResult::Handled
-            },
-            KeyCode::Char('4') => {
-                self.state.world_map_state.top_left.longitude -= 5.0;
-                EventResult::Handled
-            },
-            KeyCode::Char('6') => {
-                self.state.world_map_state.top_left.longitude += 5.0;
                 EventResult::Handled
             },
 

@@ -10,6 +10,7 @@ pub enum EventResult {
 
 pub enum RenderResult {
     Rendered,
+    Failed,
     NOOP
 }
 

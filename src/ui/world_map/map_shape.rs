@@ -1,4 +1,3 @@
-
 use tui::{widgets::canvas::{Shape, Painter}, style::Color};
 use super::world::WORLD_HIGH_RESOLUTION;
 

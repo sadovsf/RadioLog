@@ -1,4 +1,5 @@
 extern crate unicode_width;
+
 use unicode_width::UnicodeWidthStr;
 
 use crossterm::event::{KeyEvent, KeyCode};
@@ -157,7 +158,7 @@ impl CreateLogDialog {
     }
 
     fn create_input<'a, B: Backend>(&'a self, f :&mut Frame<B>, content :&'a String, field :InputFields, area :Rect) {
-        let mut row_layout = Layout::default()
+        let row_layout = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
             .constraints(
@@ -169,11 +170,7 @@ impl CreateLogDialog {
             )
             .split(area);
 
-        if row_layout[1].y > 0 {
-            row_layout[1].y -= 1;
-        }
-
-        let input = Paragraph::new(content.as_ref())
+        let input = Paragraph::new(content.clone())
             .style(match self.state.current_input == field {
                 true => Style::default().fg(Color::Yellow),
                 false => Style::default(),
@@ -229,6 +226,7 @@ impl CreateLogDialog {
             let field_content = input.to_field_mut(&mut self.state);
             field_content.clear();
         }
+        self.state.current_input = InputFields::Name;
     }
 
 

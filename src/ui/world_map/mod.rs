@@ -1,81 +1,101 @@
+mod world_map_widget;
 mod map_shape;
 mod world;
-use map_shape::MapShape;
 
-use tui::{widgets::{Block, Borders, canvas::{Canvas, Context}}, layout::Rect, style::{Color, Style}, Frame, backend::Backend, text::Span};
-use crate::data::{position::Position, Data};
+use crossterm::event::KeyCode;
+use tui::prelude::{Layout, Direction, Constraint};
 
+use crate::actions::Actions;
+use crate::data::Data;
+use crate::traits::{UIElement, RenderResult, EventResult};
 
-pub struct WorldMapState {
-    pub top_left :Position,
-    pub zoom :f64,
-
-    pub own_position :Position,
-    pub selected_position :Option<Position>,
-}
-
-impl Default for WorldMapState {
-    fn default() -> WorldMapState {
-        WorldMapState {
-            top_left: Position::new(-90.0, -180.0),
-            zoom: 1.0,
-
-            own_position: Data::get_config().own_position,
-            selected_position: None
-        }
-    }
-}
+use self::world_map_widget::WorldMapWidget;
+use self::world_map_widget::WorldMapWidgetState;
 
 
 #[derive(Default)]
 pub struct WorldMap {
-
+    state :WorldMapWidgetState,
 }
 
 
 impl WorldMap {
+    fn zoom_map(&mut self, zoom :f64) {
+        let old_center = WorldMapWidget::map_center(&self.state);
+        self.state.zoom += zoom;
+        self.state.zoom = self.state.zoom.clamp(0.05, 5.0);
+        let new_center = WorldMapWidget::map_center(&self.state);
 
-    pub fn draw_points(ctx :&mut Context, state :&WorldMapState) {
-        ctx.print(
-            state.own_position.longitude,
-            state.own_position.latitude,
-            Span::styled("x", Style::default().fg(Color::Green))
-        );
+        self.state.top_left.longitude += old_center.longitude - new_center.longitude;
+        self.state.top_left.latitude += old_center.latitude - new_center.latitude;
+    }
+}
 
-        if state.selected_position.is_some() {
-            let selected_position = state.selected_position.as_ref().unwrap();
-            ctx.print(
-                selected_position.longitude,
-                selected_position.latitude,
-                Span::styled("x", Style::default().fg(Color::Red))
-            );
+
+impl UIElement for WorldMap {
+    fn render(&mut self, f :&mut crate::common_types::RenderFrame, _actions :&mut crate::actions::ActionProcessor) -> RenderResult {
+        let rects = Layout::default()
+            .direction(Direction::Horizontal)
+            .margin(1)
+            .constraints(
+                [
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(80),
+                ].as_ref()
+            )
+            .split(f.size());
+        WorldMapWidget::render(f, rects[1], &self.state);
+        RenderResult::Rendered
+    }
+
+    fn on_action(&mut self, action :&crate::actions::Actions, _actions :&mut crate::actions::ActionProcessor) -> crate::traits::EventResult {
+        match action {
+            Actions::FocusLog(log_id) => {
+                if let Some(log_id) = log_id {
+                    if let Some(log) = Data::get_log(*log_id) {
+                        self.state.selected_position = log.position();
+                    } else {
+                        self.state.selected_position = None;
+                    }
+                } else {
+                    self.state.selected_position = None;
+                }
+                EventResult::NotHandled
+            }
+            _ => EventResult::NOOP
         }
     }
 
-    pub fn map_center(state :&WorldMapState) -> Position {
-        let width = state.top_left.longitude + (360.0 * state.zoom);
-        let height = state.top_left.latitude + (180.0 * state.zoom);
+    fn on_input(&mut self, key :&crossterm::event::KeyEvent, _actions :&mut crate::actions::ActionProcessor) -> EventResult {
+        match key.code {
+            // Map controls:
+            KeyCode::Char('+') => {
+                self.zoom_map(-0.05);
+                EventResult::Handled
+            },
+            KeyCode::Char('-') => {
+                self.zoom_map(0.05);
+                EventResult::Handled
+            },
 
-        Position::new(
-            state.top_left.latitude + (height / 2.0),
-            state.top_left.longitude + (width / 2.0),
-        )
-    }
+            KeyCode::Char('8') => {
+                self.state.top_left.latitude += 5.0;
+                EventResult::Handled
+            },
+            KeyCode::Char('5') => {
+                self.state.top_left.latitude -= 5.0;
+                EventResult::Handled
+            },
+            KeyCode::Char('4') => {
+                self.state.top_left.longitude -= 5.0;
+                EventResult::Handled
+            },
+            KeyCode::Char('6') => {
+                self.state.top_left.longitude += 5.0;
+                EventResult::Handled
+            },
 
-    pub fn render<B: Backend>(f :&mut Frame<B>, area :Rect, state :&WorldMapState) {
-        let canvas = Canvas::default()
-            .block(Block::default().title("World").borders(Borders::ALL))
-            .paint(|ctx| {
-                ctx.draw(&MapShape {
-                    color: Color::White,
-                });
-                ctx.layer();
-                WorldMap::draw_points(ctx, &state);
-            })
-            .marker(tui::symbols::Marker::Braille)
-            .x_bounds([state.top_left.longitude, state.top_left.longitude + (360.0 * state.zoom)])
-            .y_bounds([state.top_left.latitude, state.top_left.latitude + (180.0 * state.zoom)]);
-
-        f.render_widget(canvas, area);
+            _ => EventResult::NotHandled
+        }
     }
 }
