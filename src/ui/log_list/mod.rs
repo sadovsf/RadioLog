@@ -62,6 +62,9 @@ impl<'a> UIElement for LogList<'a> {
             self.logs_cache = app_ctx.data.logs
                 .iter()
                 .map(|log| {
+                    if log.name.is_none() {
+                        return ListItem::new(Span::raw("Unknown"));
+                    }
                     let span = Span::raw(log.name.as_ref().unwrap().clone());
                     ListItem::new(span)
                 })
@@ -80,7 +83,7 @@ impl<'a> UIElement for LogList<'a> {
             )
             .highlight_symbol(">> ")
         , rects[0], &mut self.state);
-        RenderResult::Rendered
+        Ok(())
     }
 
     fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {

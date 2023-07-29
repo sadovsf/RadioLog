@@ -73,7 +73,7 @@ impl<T> UIElement for T where T: DialogInterface {
 
     fn on_draw(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
         if self.is_opened() == false {
-            return RenderResult::NOOP;
+            return Ok(());
         }
         self.render(f, app_ctx)
     }

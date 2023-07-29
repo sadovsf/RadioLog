@@ -213,7 +213,7 @@ impl DialogInterface for CreateLogDialog {
             );
         };
 
-        RenderResult::Rendered
+        Ok(())
     }
 
     fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {

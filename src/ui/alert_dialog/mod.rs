@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use tui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
-use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
+use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult, RenderError}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 
 bitflags::bitflags! {
@@ -163,7 +163,7 @@ impl DialogInterface for AlertDialog {
             ].as_ref())
             .split(area)
         else {
-            return RenderResult::Failed;
+            return Err(RenderError::LayoutError);
         };
 
         let [_, msg_rect] = *Layout::default()
@@ -174,7 +174,7 @@ impl DialogInterface for AlertDialog {
             ].as_ref())
             .split(msg_rect)
         else {
-            return RenderResult::Failed;
+            return Err(RenderError::LayoutError);
         };
 
         f.render_widget(
@@ -201,7 +201,7 @@ impl DialogInterface for AlertDialog {
             self.render_button(f, button, button_layout[index]);
         };
 
-        RenderResult::Rendered
+        Ok(())
     }
 
     fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {

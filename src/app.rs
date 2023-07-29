@@ -40,7 +40,9 @@ impl App {
         let mut last_tick = Instant::now();
         loop {
             terminal.draw(|f| {
-                self.draw_app(f, &mut app_context);
+                if let Err(error) = self.draw_app(f, &mut app_context) {
+                    self.pop_error(error.to_string());
+                }
             })?;
 
             let timeout = TICK_RATE
@@ -76,18 +78,19 @@ impl App {
         }
     }
 
-    fn draw_app(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) {
+    fn draw_app(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
         ///// Draw elements:
-        self.ui_elements.draw(f, app_ctx);
+        self.ui_elements.draw(f, app_ctx)?;
 
         ///// Render common dialogs on top:
-        self.dialogs.draw(f, app_ctx);
+        self.dialogs.draw(f, app_ctx)?;
         if let Some(alert) = self.alert_dialog.as_mut() {
-            alert.on_draw(f, app_ctx);
+            alert.on_draw(f, app_ctx)?;
         }
 
         ///// Process accumulated actions:
         self.process_actions(app_ctx);
+        Ok(())
     }
 
     fn process_actions(&mut self, app_context :&mut AppContext) {
@@ -134,7 +137,7 @@ impl App {
 
 impl UIElement for App {
     fn render(&mut self, _f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
-        RenderResult::NOOP
+        Ok(())
     }
 
     fn on_action(&mut self, action :&Actions, _app_ctx :&mut AppContext) -> EventResult {

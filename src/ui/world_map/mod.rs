@@ -112,7 +112,7 @@ impl UIElement for WorldMap {
 
         f.render_widget(canvas, rects[1]);
 
-        RenderResult::Rendered
+        Ok(())
     }
 
     fn on_action(&mut self, action :&crate::actions::Actions, app_ctx :&mut AppContext) -> crate::traits::EventResult {

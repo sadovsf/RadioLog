@@ -1,4 +1,4 @@
-use crate::{traits::{UIElement, UIEvents, EventResult}, common_types::RenderFrame, app_context::AppContext};
+use crate::{traits::{UIElement, UIEvents, EventResult, RenderResult}, common_types::RenderFrame, app_context::AppContext};
 
 
 
@@ -26,9 +26,10 @@ impl UIHandler {
         result
     }
 
-    pub fn draw(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) {
+    pub fn draw(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
         for element in &mut self.elements {
-            element.on_draw(f, app_ctx);
-        }
+            element.on_draw(f, app_ctx)?;
+        };
+        Ok(())
     }
 }

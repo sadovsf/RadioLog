@@ -38,7 +38,7 @@ impl UIElement for DetailsWindow {
 
     fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
         if self.state.selected_log.is_none() {
-            return RenderResult::NOOP;
+            return Ok(());
         }
 
         let area = f.size();
@@ -81,7 +81,7 @@ impl UIElement for DetailsWindow {
             },
         }
 
-        RenderResult::Rendered
+        Ok(())
     }
 
     fn on_action(&mut self, action :&Actions, app_ctx :&mut AppContext) -> crate::traits::EventResult {

@@ -453,6 +453,7 @@ dependencies = [
  "ratatui",
  "serde",
  "serde_json",
+ "thiserror",
  "turbosql",
  "unicode-width",
  "ureq",

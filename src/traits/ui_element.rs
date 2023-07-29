@@ -1,5 +1,6 @@
 use crossterm::event::KeyEvent;
 use crate::{actions::Actions, common_types::RenderFrame, app_context::AppContext};
+use thiserror::Error;
 
 #[derive(PartialEq, Eq)]
 pub enum EventResult {
@@ -8,11 +9,13 @@ pub enum EventResult {
     NOOP
 }
 
-pub enum RenderResult {
-    Rendered,
-    Failed,
-    NOOP
+#[derive(Error, Debug)]
+pub enum RenderError {
+    #[error("Failed to layout UI element")]
+    LayoutError,
 }
+
+pub type RenderResult = Result<(), RenderError>;
 
 #[derive(PartialEq)]
 pub enum UIEvents<'a> {
