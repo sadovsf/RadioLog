@@ -136,8 +136,8 @@ impl DialogInterface for AlertDialog {
         self.state.opened
     }
 
-    fn render(&self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
-        let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, f.size());
+    fn render(&self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
+        let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default()

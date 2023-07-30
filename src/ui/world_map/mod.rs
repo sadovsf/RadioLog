@@ -2,7 +2,7 @@ mod map_shape;
 mod world;
 
 use crossterm::event::KeyCode;
-use tui::prelude::{Layout, Direction, Constraint};
+use tui::prelude::{Layout, Direction, Constraint, Rect};
 use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Block, Borders};
@@ -84,19 +84,7 @@ impl WorldMap {
 
 
 impl UIElement for WorldMap {
-    fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
-        let rects = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints(
-                [
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(80),
-                ].as_ref()
-            )
-            .split(f.size());
-
-
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         let canvas = Canvas::default()
             .block(Block::default().title("World").borders(Borders::ALL))
             .paint(|ctx| {
@@ -110,7 +98,7 @@ impl UIElement for WorldMap {
             .x_bounds([self.state.top_left.longitude, self.state.top_left.longitude + (360.0 * self.state.zoom)])
             .y_bounds([self.state.top_left.latitude, self.state.top_left.latitude + (180.0 * self.state.zoom)]);
 
-        f.render_widget(canvas, rects[1]);
+        f.render_widget(canvas, rect);
 
         Ok(())
     }

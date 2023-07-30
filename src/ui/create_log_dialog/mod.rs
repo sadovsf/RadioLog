@@ -179,9 +179,9 @@ impl DialogInterface for CreateLogDialog {
         self.set_opened(false);
     }
 
-    fn render(&self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
+    fn render(&self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
 
-        let area = DialogHelpers::center_rect_perc(50, 35, f.size());
+        let area = DialogHelpers::center_rect_perc(50, 35, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Create log").borders(Borders::ALL),

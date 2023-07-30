@@ -1,5 +1,5 @@
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{layout::{Layout, Direction, Constraint}, text::Span, widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}};
+use tui::{layout::{Layout, Direction, Constraint}, text::Span, widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}, prelude::Rect};
 
 use crate::{traits::{UIElement, RenderResult, EventResult}, common_types::RenderFrame, actions::Actions, app_context::AppContext, data::LogEntry};
 
@@ -46,18 +46,7 @@ impl<'a> LogList<'a> {
 }
 
 impl<'a> UIElement for LogList<'a> {
-    fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
-        let rects = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints(
-                [
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(80),
-                ].as_ref()
-            )
-            .split(f.size());
-
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         if self.logs_cache_version != app_ctx.data.logs.get_version() {
             self.logs_cache = app_ctx.data.logs
                 .iter()
@@ -82,7 +71,7 @@ impl<'a> UIElement for LogList<'a> {
                     .add_modifier(Modifier::BOLD)
             )
             .highlight_symbol(">> ")
-        , rects[0], &mut self.state);
+        , rect, &mut self.state);
         Ok(())
     }
 

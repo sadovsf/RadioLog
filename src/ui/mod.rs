@@ -14,3 +14,6 @@ pub use alert_dialog::AlertDialogStyle;
 
 mod details_window;
 pub use details_window::DetailsWindow;
+
+mod input;
+pub use input::Input;

@@ -1,4 +1,5 @@
 use crossterm::event::KeyEvent;
+use tui::prelude::Rect;
 use crate::{actions::Actions, common_types::RenderFrame, app_context::AppContext};
 use thiserror::Error;
 
@@ -13,6 +14,9 @@ pub enum EventResult {
 pub enum RenderError {
     #[error("Failed to layout UI element")]
     LayoutError,
+
+    #[error("Element was already rendered this frame")]
+    AlreadyRendered,
 }
 
 pub type RenderResult = Result<(), RenderError>;
@@ -24,11 +28,11 @@ pub enum UIEvents<'a> {
 }
 
 pub trait UIElement {
-    fn render(&mut self, _f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult;
+    fn render(&mut self, _f :&mut RenderFrame, _rect :Rect, _app_ctx :&mut AppContext) -> RenderResult;
 
 
-    fn on_draw(&mut self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult {
-        self.render(f, _app_ctx)
+    fn on_draw(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
+        self.render(f, rect, app_ctx)
     }
 
     fn on_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {

@@ -51,7 +51,7 @@ pub trait DialogInterface {
     fn set_opened(&mut self, opened :bool);
     fn is_opened(&self) -> bool;
 
-    fn render(&self, f :&mut RenderFrame, _app_ctx :&mut AppContext) -> RenderResult;
+    fn render(&self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult;
 
     fn on_input(&mut self, _key :&KeyEvent, _app_ctx :&mut AppContext) -> EventResult {
         EventResult::NotHandled
@@ -71,11 +71,11 @@ pub trait DialogInterface {
 
 impl<T> UIElement for T where T: DialogInterface {
 
-    fn on_draw(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
+    fn on_draw(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         if self.is_opened() == false {
             return Ok(());
         }
-        self.render(f, app_ctx)
+        self.render(f, rect, app_ctx)
     }
 
     fn on_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
@@ -89,8 +89,8 @@ impl<T> UIElement for T where T: DialogInterface {
         self._route_event(event, app_ctx)
     }
 
-    fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
-        T::render(self, f, app_ctx)
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
+        T::render(self, f, rect, app_ctx)
     }
 
     fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {

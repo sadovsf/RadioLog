@@ -36,18 +36,10 @@ impl DetailsWindow {
 
 impl UIElement for DetailsWindow {
 
-    fn render(&mut self, f :&mut RenderFrame, app_ctx :&mut AppContext) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         if self.state.selected_log.is_none() {
             return Ok(());
         }
-
-        let area = f.size();
-        let rect = Rect {
-            x: area.width - 70,
-            y: area.height - 10,
-            width: 70,
-            height: 10,
-        };
 
         f.render_widget(Clear, rect);
         f.render_widget(
