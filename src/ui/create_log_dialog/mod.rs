@@ -151,8 +151,15 @@ impl CreateLogDialog {
             return;
         }
 
-        let top_location = &list[0];
-        self.set_field(InputFields::Name, top_location.name.clone());
+        let top_location: &crate::map_api::LocationResult = &list[0];
+        let parts :Vec<&str> = top_location.name.splitn(3, ',').collect();
+
+        if parts.len() >= 2 {
+            self.set_field(InputFields::Name, format!("{},{}", parts[0], parts[1]));
+        } else {
+            self.set_field(InputFields::Name, parts[0].to_string());
+        }
+
         self.set_field(InputFields::Latitude, top_location.latitude.to_string());
         self.set_field(InputFields::Longtitude, top_location.longitude.to_string());
     }
