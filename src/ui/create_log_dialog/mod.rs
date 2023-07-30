@@ -1,9 +1,7 @@
 extern crate unicode_width;
 
-use unicode_width::UnicodeWidthStr;
-
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Span};
+use tui::{layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders}};
 
 use crate::{data::LogEntry, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
@@ -11,29 +9,20 @@ mod input_fields;
 use input_fields::InputFields;
 use crate::traits::DialogInterface;
 
-use super::define_typed_element;
+use super::{define_typed_element, Input};
 
 
 pub struct CreateLogDialogState {
     opened: bool,
 
     current_input: InputFields,
-
-    name: String,
-    latitude: String,
-    longtitude: String,
 }
 
 impl Default for CreateLogDialogState {
     fn default() -> Self {
         Self {
             opened: false,
-
             current_input: InputFields::Name,
-
-            name: String::new(),
-            latitude: String::new(),
-            longtitude: String::new(),
         }
     }
 }
@@ -41,59 +30,56 @@ impl Default for CreateLogDialogState {
 
 
 
-#[derive(Default)]
 pub struct CreateLogDialog {
     state: CreateLogDialogState,
     log_to_edit: Option<i64>,
+    inputs: Vec<Input>,
 }
 define_typed_element!(CreateLogDialog);
 
 
+
+impl Default for CreateLogDialog {
+    fn default() -> Self {
+        let mut me = Self {
+            state: CreateLogDialogState::default(),
+            log_to_edit: None,
+            inputs: vec!(),
+        };
+
+        for idx in 0..InputFields::LAST as u8 {
+            me.inputs.push(
+                Input::default()
+                    .set_label(InputFields::from(idx).to_string())
+            );
+        }
+        me.set_focus(InputFields::Name);
+        return me;
+    }
+}
+
+
 impl CreateLogDialog {
+
+    fn get_field(&self, field :InputFields) -> &String {
+        self.inputs[field as usize].get()
+    }
+
+    fn set_field(&mut self, field :InputFields, value :String) {
+        self.inputs[field as usize].set(value);
+    }
+
     pub fn edit(&mut self, log :&LogEntry) {
         if log.rowid.is_none() {
             return;
         }
 
         self.state.opened = true;
-        self.state.name = log.name.clone().unwrap_or("".to_string());
-        self.state.latitude = log.lat.map(|v| v.to_string()).unwrap_or("".to_string());
-        self.state.longtitude = log.long.map(|v| v.to_string()).unwrap_or("".to_string());
+        self.set_field(InputFields::Name, log.name.clone().unwrap_or("".to_string()));
+        self.set_field(InputFields::Latitude, log.lat.map(|v| v.to_string()).unwrap_or("".to_string()));
+        self.set_field(InputFields::Longtitude, log.long.map(|v| v.to_string()).unwrap_or("".to_string()));
+
         self.log_to_edit = log.rowid;
-    }
-
-    fn create_input<'a, B: Backend>(&'a self, f :&mut Frame<B>, content :&'a String, field :InputFields, area :Rect) {
-        let row_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints(
-                [
-                    Constraint::Percentage(30),
-                    Constraint::Percentage(70),
-                ]
-                .as_ref(),
-            )
-            .split(area);
-
-        let input = Paragraph::new(content.clone())
-            .style(match self.state.current_input == field {
-                true => Style::default().fg(Color::Yellow),
-                false => Style::default(),
-            })
-            .block(Block::default().borders(Borders::ALL));
-
-        f.render_widget(
-            Paragraph::new(Span::raw(format!("{}:", field) )),
-            row_layout[0]
-        );
-        f.render_widget(input, row_layout[1]);
-
-        if self.state.current_input == field {
-            f.set_cursor(
-                row_layout[1].x + content.width() as u16 + 1,
-                row_layout[1].y + 1,
-            )
-        }
     }
 
 
@@ -103,9 +89,9 @@ impl CreateLogDialog {
 
                 let result = app_ctx.data.logs.edit(LogEntry{
                     rowid: Some(*row_id),
-                    name: Some(self.state.name.clone()),
-                    lat: self.state.latitude.parse().ok(),
-                    long: self.state.longtitude.parse().ok(),
+                    name: Some(self.get_field(InputFields::Name).clone()),
+                    lat: self.get_field(InputFields::Latitude).parse().ok(),
+                    long: self.get_field(InputFields::Longtitude).parse().ok(),
                     ..Default::default()
                 });
                 if result.is_err() {
@@ -115,9 +101,9 @@ impl CreateLogDialog {
             },
             None => {
                 let res = app_ctx.data.logs.add(LogEntry{
-                    name: Some(self.state.name.clone()),
-                    lat: self.state.latitude.parse().ok(),
-                    long: self.state.longtitude.parse().ok(),
+                    name: Some(self.get_field(InputFields::Name).clone()),
+                    lat: self.get_field(InputFields::Latitude).parse().ok(),
+                    long: self.get_field(InputFields::Longtitude).parse().ok(),
                     ..Default::default()
                 });
                 if res.is_err() {
@@ -128,20 +114,32 @@ impl CreateLogDialog {
         self.close();
     }
 
+    fn set_focus(&mut self, field :InputFields) {
+        let old_focus = &mut self.inputs[self.state.current_input as usize];
+        old_focus.set_focused(false);
+
+        self.state.current_input = field;
+
+        let new_focus = &mut self.inputs[self.state.current_input as usize];
+        new_focus.set_focused(true);
+    }
+
+    fn get_focused(&mut self) -> &mut Input {
+        &mut self.inputs[self.state.current_input as usize]
+    }
 
     fn clear_form(&mut self) {
-        for idx in 0..InputFields::LAST as u8 {
-            let input = InputFields::from(idx);
-            let field_content = input.to_field_mut(&mut self.state);
-            field_content.clear();
+        for idx in 0..InputFields::LAST as usize {
+            self.inputs[idx].clear();
         }
-        self.state.current_input = InputFields::Name;
+
+        self.set_focus(InputFields::Name);
     }
 
 
 
     fn find_location(&mut self, name :&String, app_ctx :&mut AppContext) {
-        let results = OnlineMap::query_location(&self.state.name);
+        let results = OnlineMap::query_location(&self.get_field(InputFields::Name));
         if results.is_err() {
             app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", results.err().unwrap())));
             return;
@@ -154,9 +152,9 @@ impl CreateLogDialog {
         }
 
         let top_location = &list[0];
-        self.state.name = top_location.name.clone();
-        self.state.latitude = top_location.latitude.to_string();
-        self.state.longtitude = top_location.longitude.to_string();
+        self.set_field(InputFields::Name, top_location.name.clone());
+        self.set_field(InputFields::Latitude, top_location.latitude.to_string());
+        self.set_field(InputFields::Longtitude, top_location.longitude.to_string());
     }
 }
 
@@ -186,7 +184,7 @@ impl DialogInterface for CreateLogDialog {
 impl UIElement for CreateLogDialog {
     implement_typed_element!();
 
-    fn render(&mut self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         if ! self.is_opened() {
             return Ok(());
         }
@@ -200,7 +198,7 @@ impl UIElement for CreateLogDialog {
 
         let mut constraints = vec!();
         for _ in 0..InputFields::LAST as u8 {
-            constraints.push(Constraint::Length(5));
+            constraints.push(Constraint::Length(3));
         }
         constraints.push(Constraint::Length(1));
 
@@ -211,16 +209,8 @@ impl UIElement for CreateLogDialog {
             .constraints(constraints.as_ref())
             .split(area);
 
-        for idx in 0..InputFields::LAST as u8 {
-            let input = InputFields::from(idx);
-            let field_content = input.to_field(&self.state);
-
-            self.create_input(
-                f,
-                field_content,
-                input,
-                popup_layout[idx as usize]
-            );
+        for (idx, input) in self.inputs.iter_mut().enumerate() {
+            input.on_draw(f, popup_layout[idx], app_ctx)?;
         };
 
         Ok(())
@@ -233,18 +223,14 @@ impl UIElement for CreateLogDialog {
 
         match key.code {
             KeyCode::Esc => self.close(),
-            KeyCode::Tab => self.state.current_input = self.state.current_input.next(),
-            KeyCode::BackTab => self.state.current_input = self.state.current_input.prev(),
-            KeyCode::Delete => self.clear_form(),
+            KeyCode::Tab => self.set_focus(self.state.current_input.next()),
+            KeyCode::BackTab => self.set_focus(self.state.current_input.prev()),
             KeyCode::Enter => self.save(app_ctx),
-            KeyCode::Backspace => {
-                self.state.current_input.to_field_mut(&mut self.state).pop();
-            },
-            KeyCode::Char(c) => {
-                self.state.current_input.to_field_mut(&mut self.state).push(c);
-            },
-            KeyCode::PageDown => self.find_location(&self.state.name.clone(), app_ctx),
-            _ => {}
+            KeyCode::PageDown => self.find_location(&self.get_field(InputFields::Name).clone(), app_ctx),
+            KeyCode::F(2) => self.clear_form(),
+            _ => {
+                self.get_focused().on_input(key, app_ctx);
+            }
         };
         EventResult::Handled
     }

@@ -1,6 +1,4 @@
-use std::{fmt::Display};
-
-use super::CreateLogDialogState;
+use std::fmt::Display;
 
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -48,22 +46,5 @@ impl InputFields {
             return (InputFields::LAST as u8 - 1).into();
         }
         ((old_val - 1) % InputFields::LAST as u8).into()
-    }
-
-    pub fn to_field_mut<'a>(self, state :&'a mut CreateLogDialogState) -> &'a mut String {
-        match self {
-            InputFields::Name => &mut state.name,
-            InputFields::Latitude => &mut state.latitude,
-            InputFields::Longtitude => &mut state.longtitude,
-            _ => panic!("Invalid value for InputFields")
-        }
-    }
-    pub fn to_field<'a>(self, state :&'a CreateLogDialogState) -> &'a String {
-        match self {
-            InputFields::Name => &state.name,
-            InputFields::Latitude => &state.latitude,
-            InputFields::Longtitude => &state.longtitude,
-            _ => panic!("Invalid value for InputFields")
-        }
     }
 }
