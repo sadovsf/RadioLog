@@ -1,9 +1,8 @@
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{layout::{Layout, Direction, Constraint}, text::Span, widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}, prelude::Rect};
+use tui::{text::Span, widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}, prelude::Rect};
 
 use crate::{traits::{UIElement, RenderResult, EventResult}, common_types::RenderFrame, actions::Actions, app_context::AppContext, data::LogEntry};
-
-use super::AlertDialogStyle;
+use super::{AlertDialogStyle, unique_ids::define_typed_element};
 
 #[derive(Default)]
 pub struct LogList<'a> {
@@ -12,6 +11,8 @@ pub struct LogList<'a> {
     logs_cache :Vec<ListItem<'a>>,
     logs_cache_version :u32,
 }
+define_typed_element!(LogList<'_>);
+
 
 impl<'a> LogList<'a> {
     pub fn next(&self, app_ctx :&mut AppContext) -> i64 {
@@ -46,6 +47,8 @@ impl<'a> LogList<'a> {
 }
 
 impl<'a> UIElement for LogList<'a> {
+    implement_typed_element!();
+
     fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         if self.logs_cache_version != app_ctx.data.logs.get_version() {
             self.logs_cache = app_ctx.data.logs

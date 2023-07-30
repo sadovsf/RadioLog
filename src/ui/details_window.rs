@@ -1,6 +1,8 @@
 use tui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::Span};
 use crate::{traits::{UIElement, RenderResult, EventResult}, data::LogEntry, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
+use super::unique_ids::define_typed_element;
+
 
 
 #[derive(Default)]
@@ -10,8 +12,9 @@ struct DetailsWindowState {
 
 #[derive(Default)]
 pub struct DetailsWindow {
-    state :DetailsWindowState,
+    state :DetailsWindowState
 }
+define_typed_element!(DetailsWindow);
 
 impl DetailsWindow {
     pub fn set_log(&mut self, log :LogEntry) {
@@ -35,6 +38,7 @@ impl DetailsWindow {
 
 
 impl UIElement for DetailsWindow {
+    implement_typed_element!();
 
     fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         if self.state.selected_log.is_none() {

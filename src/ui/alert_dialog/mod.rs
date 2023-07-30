@@ -2,7 +2,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use tui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
-use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult, RenderError}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
+use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult, RenderError, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
+
+use super::define_typed_element;
 
 
 bitflags::bitflags! {
@@ -55,6 +57,7 @@ pub struct AlertDialog {
     style :AlertDialogStyle,
     action_on_close: Option<Actions>
 }
+define_typed_element!(AlertDialog);
 
 impl AlertDialog {
     pub fn new(message :String, buttons :AlertDialogButton, style :AlertDialogStyle, on_confirm: Option<Actions>) -> Self {
@@ -135,8 +138,17 @@ impl DialogInterface for AlertDialog {
     fn is_opened(&self) -> bool {
         self.state.opened
     }
+}
 
-    fn render(&self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
+
+impl UIElement for AlertDialog {
+    implement_typed_element!();
+
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
+        if ! self.is_opened() {
+            return Ok(());
+        }
+
         let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
@@ -205,6 +217,10 @@ impl DialogInterface for AlertDialog {
     }
 
     fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {
+        if ! self.is_opened() {
+            return EventResult::NOOP;
+        }
+
         match key.code {
             KeyCode::Esc => {
                 self.close();

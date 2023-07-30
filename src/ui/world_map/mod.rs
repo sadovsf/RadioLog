@@ -2,7 +2,7 @@ mod map_shape;
 mod world;
 
 use crossterm::event::KeyCode;
-use tui::prelude::{Layout, Direction, Constraint, Rect};
+use tui::prelude::Rect;
 use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Block, Borders};
@@ -15,6 +15,8 @@ use crate::data::position::Position;
 use crate::traits::{UIElement, RenderResult, EventResult};
 
 use self::map_shape::MapShape;
+
+use super::unique_ids::define_typed_element;
 
 
 pub struct WorldMapWidgetState {
@@ -41,6 +43,7 @@ impl Default for WorldMapWidgetState {
 pub struct WorldMap {
     state :WorldMapWidgetState,
 }
+define_typed_element!(WorldMap);
 
 
 impl WorldMap {
@@ -84,6 +87,8 @@ impl WorldMap {
 
 
 impl UIElement for WorldMap {
+    implement_typed_element!();
+
     fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         let canvas = Canvas::default()
             .block(Block::default().title("World").borders(Borders::ALL))

@@ -27,9 +27,31 @@ pub enum UIEvents<'a> {
     Action(&'a Actions),
 }
 
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+pub struct UIElementType {
+    uid  :u64,
+    name :&'static str,
+}
+
+impl UIElementType {
+    pub const fn new(name :&'static str, uid :u64) -> Self {
+        Self {
+            uid: uid,
+            name: name,
+        }
+    }
+}
+
+
+pub trait TypedUIElement :UIElement {
+    fn get_type_type() -> &'static UIElementType;
+}
+
+
 pub trait UIElement {
     fn render(&mut self, _f :&mut RenderFrame, _rect :Rect, _app_ctx :&mut AppContext) -> RenderResult;
-
+    fn get_type(&self) -> &'static UIElementType;
 
     fn on_draw(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
         self.render(f, rect, app_ctx)

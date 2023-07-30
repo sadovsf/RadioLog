@@ -5,11 +5,13 @@ use unicode_width::UnicodeWidthStr;
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{backend::Backend, Frame, layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders, Paragraph}, style::{Style, Color}, text::Span};
 
-use crate::{data::LogEntry, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
+use crate::{data::LogEntry, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 mod input_fields;
 use input_fields::InputFields;
 use crate::traits::DialogInterface;
+
+use super::define_typed_element;
 
 
 pub struct CreateLogDialogState {
@@ -44,6 +46,7 @@ pub struct CreateLogDialog {
     state: CreateLogDialogState,
     log_to_edit: Option<i64>,
 }
+define_typed_element!(CreateLogDialog);
 
 
 impl CreateLogDialog {
@@ -178,8 +181,15 @@ impl DialogInterface for CreateLogDialog {
         self.log_to_edit = None;
         self.set_opened(false);
     }
+}
 
-    fn render(&self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
+impl UIElement for CreateLogDialog {
+    implement_typed_element!();
+
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
+        if ! self.is_opened() {
+            return Ok(());
+        }
 
         let area = DialogHelpers::center_rect_perc(50, 35, rect);
         f.render_widget(Clear, area); //this clears out the background
@@ -217,6 +227,10 @@ impl DialogInterface for CreateLogDialog {
     }
 
     fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {
+        if ! self.is_opened() {
+            return EventResult::NOOP;
+        }
+
         match key.code {
             KeyCode::Esc => self.close(),
             KeyCode::Tab => self.state.current_input = self.state.current_input.next(),

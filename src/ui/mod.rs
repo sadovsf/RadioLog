@@ -17,3 +17,6 @@ pub use details_window::DetailsWindow;
 
 mod input;
 pub use input::Input;
+
+mod unique_ids;
+pub use unique_ids::*;

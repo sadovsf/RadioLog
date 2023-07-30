@@ -3,7 +3,7 @@ use std::{time::{Instant, Duration}, io::Stdout};
 use crossterm::{event::{Event, self, KeyCode}, Result};
 use tui::{Terminal, backend::CrosstermBackend, prelude::{Rect, Layout, Direction, Constraint} };
 
-use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle}, actions::Actions, traits::{RenderResult, EventResult, UIEvents, RenderError}, common_types::RenderFrame, ui_handler::{UIHandler, UIElementID}, app_context::AppContext};
+use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element, DetailsWindow}, actions::Actions, traits::{RenderResult, EventResult, UIEvents, RenderError}, common_types::RenderFrame, ui_handler::{UIHandler, UIElementID}, app_context::AppContext};
 use crate::traits::UIElement;
 
 
@@ -18,6 +18,7 @@ pub struct App {
 
     alert_dialog :Option<AlertDialog>,
 }
+define_typed_element!(App);
 
 
 impl App {
@@ -180,6 +181,8 @@ impl App {
 
 
 impl UIElement for App {
+    implement_typed_element!();
+
     fn render(&mut self, _f :&mut RenderFrame, _rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
         Ok(())
     }

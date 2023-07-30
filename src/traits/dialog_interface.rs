@@ -1,9 +1,5 @@
-use crossterm::event::KeyEvent;
 use tui::layout::{Rect, Layout, Direction, Constraint};
-
-use crate::{actions::Actions, common_types::RenderFrame, app_context::AppContext};
-
-use super::{UIElement, RenderResult, EventResult, UIEvents};
+use super::UIElement;
 
 
 pub struct DialogHelpers {}
@@ -47,57 +43,15 @@ impl DialogHelpers {
 }
 
 
-pub trait DialogInterface {
+pub trait DialogInterface :UIElement {
     fn set_opened(&mut self, opened :bool);
     fn is_opened(&self) -> bool;
 
-    fn render(&self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult;
-
-    fn on_input(&mut self, _key :&KeyEvent, _app_ctx :&mut AppContext) -> EventResult {
-        EventResult::NotHandled
-    }
-
-    fn on_action(&mut self, _action :&Actions, _app_ctx :&mut AppContext) -> EventResult {
-        EventResult::NotHandled
-    }
 
     fn open(&mut self) {
         self.set_opened(true);
     }
     fn close(&mut self) {
         self.set_opened(false);
-    }
-}
-
-impl<T> UIElement for T where T: DialogInterface {
-
-    fn on_draw(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
-        if self.is_opened() == false {
-            return Ok(());
-        }
-        self.render(f, rect, app_ctx)
-    }
-
-    fn on_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
-        if self.is_opened() == false {
-            return match event {
-                UIEvents::Action(_) => self._route_event(event, app_ctx)
-                , _ => EventResult::NotHandled
-            }
-        }
-
-        self._route_event(event, app_ctx)
-    }
-
-    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
-        T::render(self, f, rect, app_ctx)
-    }
-
-    fn on_input(&mut self, key :&KeyEvent, app_ctx :&mut AppContext) -> EventResult {
-        T::on_input(self, key, app_ctx)
-    }
-
-    fn on_action(&mut self, action :&Actions, app_ctx :&mut AppContext) -> EventResult {
-        T::on_action(self, action, app_ctx)
     }
 }
