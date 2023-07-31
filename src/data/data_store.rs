@@ -1,11 +1,12 @@
-use std::collections::HashMap;
-
-use turbosql::{Turbosql, execute};
+use std::{collections::HashMap, cell::{RefCell, RefMut}, rc::Rc};
+use crate::database::{Database, DBObjectSerializable, DBSchemaObject};
 
 
 
 
 pub struct DataStore<T> {
+    db: Rc<RefCell<Database>>,
+
     list: Vec<T>,
     map:  HashMap<i64, usize>,
 
@@ -19,8 +20,12 @@ pub trait DataStoreTrait {
 
 
 impl<T> DataStore<T>
-    where T: Turbosql + Default + DataStoreTrait
+    where T: DBSchemaObject + DBObjectSerializable + DataStoreTrait
 {
+    fn get_db(&mut self) -> RefMut<'_, Database> {
+        self.db.as_ref().borrow_mut()
+    }
+
     pub fn get_version(&self) -> u32 {
         self.data_version
     }
@@ -33,28 +38,32 @@ impl<T> DataStore<T>
         self.list.len()
     }
 
-    pub fn from(data :Vec<T>) -> Self {
+    pub fn from(db :Rc<RefCell<Database>>) -> Result<Self, rusqlite::Error> {
         let mut inst = DataStore {
+            db: Rc::clone(&db),
             list: Vec::new(),
             map: HashMap::new(),
             data_version: 1,
         };
 
-        for item in data {
-            inst.add_internal(item);
+        let mut db = db.as_ref().borrow_mut();
+        db.register_type::<T>()?;
+
+        for it in db.select_all::<T>()? {
+            inst.add_internal(it);
         }
 
-        inst
+        Ok(inst)
     }
 
-    pub fn edit(&mut self, item :T) -> Result<(), turbosql::Error> {
-        item.update()?;
+    pub fn edit(&mut self, item :T) -> Result<(), rusqlite::Error> {
+        self.get_db().update(&item)?;
 
         let id = item.get_id();
         let index = self.map.get(&id).expect("Failed to edit item");
         self.list[*index] = item;
 
-        self.data_version += 1;
+        self.data_version = self.data_version.wrapping_add(1);
         Ok(())
     }
 
@@ -66,20 +75,22 @@ impl<T> DataStore<T>
         self.map.insert(item_id, self.list.len() - 1);
     }
 
-    pub fn add(&mut self, item :T) -> Result<(), turbosql::Error> {
-        let item_id = item.insert()?;
+    pub fn add(&mut self, item :T) -> Result<(), rusqlite::Error> {
         let mut item = item;
-        item.set_id(item_id);
+        self.get_db().insert(&mut item)?;
+
         self.add_internal(item);
-        self.data_version += 1;
+        self.data_version = self.data_version.wrapping_add(1);
         Ok(())
     }
 
-    pub fn remove(&mut self, id :i64) -> Result<(), turbosql::Error> {
+    pub fn remove(&mut self, id :i64) -> Result<(), rusqlite::Error> {
         let index = self.map.remove(&id).expect("Failed to remove item");
-        self.list.remove(index);
-        execute!("DELETE FROM logentry WHERE rowid = ?", id)?;
-        self.data_version += 1;
+        let instance = self.list.remove(index);
+
+        self.get_db().delete(&instance)?;
+
+        self.data_version = self.data_version.wrapping_add(1);
         Ok(())
     }
 

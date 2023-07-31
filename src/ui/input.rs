@@ -1,6 +1,6 @@
 use crossterm::event::{KeyEvent, KeyCode};
 use tui::{prelude::{Rect, Alignment}, widgets::{Paragraph, Block, Wrap, Borders}, style::{Style, Color}};
-use unicode_width::{UnicodeWidthStr, UnicodeWidthChar};
+use unicode_width::UnicodeWidthStr;
 use crate::{common_types::RenderFrame, traits::{UIElement, RenderResult, EventResult}, app_context::AppContext};
 
 use super::unique_ids::define_typed_element;

@@ -1,11 +1,12 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tui::widgets::ListItem;
-use turbosql::Turbosql;
+
+use crate::database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject};
 
 use super::{Position, data_store::DataStoreTrait};
 
-#[derive(Turbosql, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LogEntry {
     pub rowid: Option<i64>,
     pub long: Option<f64>,
@@ -13,6 +14,49 @@ pub struct LogEntry {
     pub time: Option<u32>,
     pub name: Option<String>,
 }
+
+
+define_table!(LogEntry,
+    SchemaStep::SQL(
+        "CREATE TABLE LogEntry (
+            id INTEGER PRIMARY KEY,
+            long REAL,
+            lat REAL,
+            time UINT,
+            name TEXT
+        )"
+    )
+);
+
+impl DBObjectSerializable for LogEntry {
+    fn from_row(row :&rusqlite::Row) -> Result<Self, rusqlite::Error> {
+        Ok(Self {
+            rowid: row.get(0)?,
+            long: row.get(1)?,
+            lat: row.get(2)?,
+            time: row.get(3)?,
+            name: row.get(4)?,
+        })
+    }
+
+    fn insert_row(&mut self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+        conn.execute("INSERT INTO LogEntry (long, lat, time, name) VALUES (?1, ?2, ?3, ?4)", (&self.long, &self.lat, &self.time, &self.name))?;
+        self.rowid = Some(conn.last_insert_rowid());
+        Ok(())
+    }
+
+    fn update_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+        conn.execute("UPDATE LogEntry SET long=?1, lat=?2, time=?3, name=?4 WHERE id=?5", (&self.long, &self.lat, &self.time, &self.name, &self.rowid))?;
+        Ok(())
+    }
+
+    fn delete_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+        conn.execute("DELETE FROM LogEntry WHERE id=?1", [&self.rowid])?;
+        Ok(())
+    }
+}
+
+
 
 impl DataStoreTrait for LogEntry {
     fn set_id(&mut self, id: i64) {

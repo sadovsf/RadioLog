@@ -7,6 +7,7 @@ mod actions;
 mod common_types;
 mod ui_handler;
 mod app_context;
+mod database;
 
 use app::App;
 use app_context::AppContext;
@@ -34,7 +35,7 @@ fn reset_terminal() -> CrosstermResult<()> {
 }
 
 fn main() -> Result<(), io::Error> {
-    let app_context = AppContext::default();
+    let app_context = AppContext::new().expect("Failed to initialize app context");
 
     // setup terminal
     enable_raw_mode()?;
