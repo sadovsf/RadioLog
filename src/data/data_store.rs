@@ -38,7 +38,7 @@ impl<T> DataStore<T>
         self.list.len()
     }
 
-    pub fn from(db :Rc<RefCell<Database>>) -> Result<Self, rusqlite::Error> {
+    pub fn new(db :Rc<RefCell<Database>>) -> Result<Self, rusqlite::Error> {
         let mut inst = DataStore {
             db: Rc::clone(&db),
             list: Vec::new(),

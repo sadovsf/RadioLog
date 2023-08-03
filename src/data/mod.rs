@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, fs::create_dir_all};
+use std::{cell::RefCell, fs::create_dir_all, rc::Rc};
 
 mod config;
 use config::ConfigData;
@@ -27,7 +27,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn new() -> Result<Self, rusqlite::Error> {
+    fn setup_database() -> Database {
         // TODO properly handle errors
         let app_paths = AppDirs::new(Some("org.sadovsf.radio_log"), false).expect("Failed to get app dirs");
 
@@ -37,14 +37,14 @@ impl Data {
         db_path.push("data.sqlite");
         let full_path = db_path.to_str().expect("Failed to convert path to string");
 
-        let db = Rc::new(RefCell::new(
-            Database::new(full_path).expect("Failed to open database")
-        ));
-        db.as_ref().borrow_mut().register_type::<LogEntry>()?;
+        Database::new(full_path).expect("Failed to open database")
+    }
 
-
+    pub fn new() -> Result<Self, rusqlite::Error> {
+        let database = Rc::new(RefCell::new(Data::setup_database()));
         Ok(Self {
-            logs: DataStore::from(Rc::clone(&db))?,
+            logs: DataStore::new(Rc::clone(&database))?,
+
             config: ConfigData {
                 own_position: Position::new(50.061520, 14.091540)
             }
