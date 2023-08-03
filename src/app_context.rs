@@ -1,4 +1,4 @@
-use crate::{data::Data, actions::ActionProcessor};
+use crate::{data::Data, actions::ActionProcessor, app_errors::AppError};
 
 pub struct AppContext {
     pub data :Data,
@@ -7,7 +7,7 @@ pub struct AppContext {
 }
 
 impl AppContext {
-    pub fn new() -> Result<Self, rusqlite::Error> {
+    pub fn new() -> Result<Self, AppError> {
         Ok(Self {
             data: Data::new()?,
             actions: ActionProcessor::default(),

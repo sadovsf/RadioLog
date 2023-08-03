@@ -8,9 +8,11 @@ mod common_types;
 mod ui_handler;
 mod app_context;
 mod database;
+mod app_errors;
 
 use app::App;
 use app_context::AppContext;
+use app_errors::AppError;
 
 
 
@@ -34,8 +36,8 @@ fn reset_terminal() -> CrosstermResult<()> {
     Ok(())
 }
 
-fn main() -> Result<(), io::Error> {
-    let app_context = AppContext::new().expect("Failed to initialize app context");
+fn main() -> Result<(), AppError> {
+    let app_context = AppContext::new()?;
 
     // setup terminal
     enable_raw_mode()?;
@@ -44,23 +46,17 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        let _ = reset_terminal();
+        original_hook(panic);
+    }));
 
     // setup app
     let mut app = App::new();
     let result = app.run(&mut terminal, app_context);
 
-    let original_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |panic| {
-        reset_terminal().unwrap();
-        original_hook(panic);
-    }));
-
     // restore terminal
     reset_terminal()?;
-
-    if result.is_err() {
-        println!("Error: {:?}", result);
-        return Err(result.unwrap_err());
-    }
-    Ok(())
+    Ok(result?)
 }

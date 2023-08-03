@@ -14,11 +14,7 @@ pub use logs::LogEntry;
 mod data_store;
 use data_store::DataStore;
 
-use crate::database::Database;
-
-
-
-
+use crate::{database::Database, app_errors::AppError};
 
 
 pub struct Data {
@@ -27,21 +23,24 @@ pub struct Data {
 }
 
 impl Data {
-    fn setup_database() -> Database {
-        // TODO properly handle errors
-        let app_paths = AppDirs::new(Some("org.sadovsf.radio_log"), false).expect("Failed to get app dirs");
+    fn setup_database() -> Result<Database, AppError> {
+        let app_paths = AppDirs::new(
+            Some("org.sadovsf.radio_log"), false
+        ).ok_or(
+            std::io::Error::new(std::io::ErrorKind::NotFound, "Unable to find user directory!")
+        )?;
 
         let mut db_path = app_paths.data_dir.clone();
-        create_dir_all(&db_path).expect("Failed to create data dir");
+        create_dir_all(&db_path)?;
 
         db_path.push("data.sqlite");
         let full_path = db_path.to_str().expect("Failed to convert path to string");
 
-        Database::new(full_path).expect("Failed to open database")
+        Ok(Database::new(full_path)?)
     }
 
-    pub fn new() -> Result<Self, rusqlite::Error> {
-        let database = Rc::new(RefCell::new(Data::setup_database()));
+    pub fn new() -> Result<Self, AppError> {
+        let database = Rc::new(RefCell::new(Data::setup_database()?));
         Ok(Self {
             logs: DataStore::new(Rc::clone(&database))?,
 
