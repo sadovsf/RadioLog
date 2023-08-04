@@ -1,3 +1,6 @@
+use std::fs::create_dir_all;
+
+use platform_dirs::AppDirs;
 use rusqlite::Connection;
 
 mod db_object;
@@ -5,6 +8,8 @@ pub use db_object::{DBSchemaObject, DBObjectSerializable, SchemaStep};
 
 mod descriptor_table;
 use descriptor_table::TableDescriptor;
+
+use crate::app_errors::AppError;
 
 pub mod macros;
 
@@ -14,6 +19,22 @@ pub struct Database {
 }
 
 impl Database {
+    pub fn from_app_database() -> Result<Database, AppError> {
+        let app_paths = AppDirs::new(
+            Some("org.sadovsf.radio_log"), false
+        ).ok_or(
+            std::io::Error::new(std::io::ErrorKind::NotFound, "Unable to find user directory!")
+        )?;
+
+        let mut db_path = app_paths.data_dir.clone();
+        create_dir_all(&db_path)?;
+
+        db_path.push("data.sqlite");
+        let full_path = db_path.to_str().expect("Failed to convert path to string");
+
+        Ok(Database::new(full_path)?)
+    }
+
     pub fn new(path :&str) -> Result<Self, rusqlite::Error> {
         let mut inst = Self {
             connection: Connection::open(path).expect("Failed to open database"),

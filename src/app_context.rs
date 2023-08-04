@@ -1,15 +1,16 @@
-use crate::{data::Data, actions::ActionProcessor, app_errors::AppError};
+use std::cell::RefCell;
 
-pub struct AppContext {
-    pub data :Data,
+use crate::{data::Data, actions::ActionProcessor, app_errors::AppError, database::Database};
+
+pub struct AppContext<'a> {
+    pub data :Data<'a>,
     pub actions :ActionProcessor
-    ,
 }
 
-impl AppContext {
-    pub fn new() -> Result<Self, AppError> {
+impl<'a> AppContext<'a> {
+    pub fn new(db :&'a RefCell<Database>) -> Result<Self, AppError> {
         Ok(Self {
-            data: Data::new()?,
+            data: Data::new(db)?,
             actions: ActionProcessor::default(),
         })
     }

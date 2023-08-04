@@ -1,11 +1,11 @@
-use std::{collections::HashMap, cell::{RefCell, RefMut}, rc::Rc};
+use std::{collections::HashMap, cell::{RefCell, RefMut}};
 use crate::database::{Database, DBObjectSerializable, DBSchemaObject};
 
 
 
 
-pub struct DataStore<T> {
-    db: Rc<RefCell<Database>>,
+pub struct DataStore<'a, T> {
+    db: &'a RefCell<Database>,
 
     list: Vec<T>,
     map:  HashMap<i64, usize>,
@@ -19,11 +19,11 @@ pub trait DataStoreTrait {
 }
 
 
-impl<T> DataStore<T>
+impl<'a, T> DataStore<'a, T>
     where T: DBSchemaObject + DBObjectSerializable + DataStoreTrait
 {
     fn get_db(&mut self) -> RefMut<'_, Database> {
-        self.db.as_ref().borrow_mut()
+        self.db.borrow_mut()
     }
 
     pub fn get_version(&self) -> u32 {
@@ -38,15 +38,15 @@ impl<T> DataStore<T>
         self.list.len()
     }
 
-    pub fn new(db :Rc<RefCell<Database>>) -> Result<Self, rusqlite::Error> {
+    pub fn new(db :&'a RefCell<Database>) -> Result<Self, rusqlite::Error> {
         let mut inst = DataStore {
-            db: Rc::clone(&db),
+            db,
             list: Vec::new(),
             map: HashMap::new(),
             data_version: 1,
         };
 
-        let mut db = db.as_ref().borrow_mut();
+        let mut db = db.borrow_mut();
         db.register_type::<T>()?;
 
         for it in db.select_all::<T>()? {

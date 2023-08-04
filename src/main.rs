@@ -16,7 +16,7 @@ use app_errors::AppError;
 
 
 
-use std::{io};
+use std::{io, cell::RefCell};
 use tui::{
     backend::CrosstermBackend,
     Terminal
@@ -37,7 +37,8 @@ fn reset_terminal() -> CrosstermResult<()> {
 }
 
 fn main() -> Result<(), AppError> {
-    let app_context = AppContext::new()?;
+    let database = RefCell::new(database::Database::from_app_database()?);
+    let app_context = AppContext::new(&database)?;
 
     // setup terminal
     enable_raw_mode()?;
