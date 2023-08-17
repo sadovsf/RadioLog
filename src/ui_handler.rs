@@ -19,6 +19,7 @@ struct ElementStorage {
 #[derive(Default)]
 pub struct UIHandler {
     elements: Vec<ElementStorage>,
+    focused_index :Option<usize>,
 }
 
 impl UIHandler {
@@ -32,6 +33,11 @@ impl UIHandler {
             element,
             last_rendered_frame: 0,
         });
+
+        if self.focused_index.is_none() {
+            self.focus_next();
+        }
+
         id
     }
 
@@ -52,6 +58,11 @@ impl UIHandler {
     }
 
     pub fn send_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
+        if let Some(index) = self.focused_index {
+            let element = &mut self.elements[index];
+            return element.element.on_event(event, app_ctx);
+        }
+
         let mut result = EventResult::NotHandled;
         for element in &mut self.elements {
             if element.element.on_event(event, app_ctx) == EventResult::Handled {
@@ -81,5 +92,33 @@ impl UIHandler {
         entry.last_rendered_frame = frame_index;
         entry.element.on_draw(f, rect, app_ctx)?;
         Ok(())
+    }
+
+    pub fn focus_next(&mut self) {
+        if self.elements.len() == 0 && self.focused_index.is_some() {
+            panic!("Invalid ui handler state. Empty elements list while having focused index.");
+        }
+        if self.elements.len() == 0 {
+            return;
+        }
+
+        if self.focused_index.is_none() {
+            self.focused_index = Some(0);
+            self.elements[0].element.set_focused(true);
+            return;
+        }
+
+        if let Some(index) = self.focused_index {
+            let mut index = index + 1;
+            if index >= self.elements.len() {
+                index = 0;
+            }
+
+            if index != self.focused_index.unwrap() {
+                self.elements[self.focused_index.unwrap()].element.set_focused(false);
+                self.elements[index].element.set_focused(true);
+            }
+            self.focused_index = Some(index);
+        }
     }
 }

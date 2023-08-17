@@ -1,6 +1,12 @@
 mod log_list;
 pub use log_list::LogList;
 
+mod log_table;
+pub use log_table::LogTable;
+
+mod logs_input;
+pub use logs_input::LogsInput;
+
 mod world_map;
 pub use world_map::WorldMap;
 

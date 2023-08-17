@@ -196,7 +196,7 @@ impl UIElement for CreateLogDialog {
             return Ok(());
         }
 
-        let area = DialogHelpers::center_rect_perc(50, 35, rect);
+        let area = DialogHelpers::center_rect_perc(50, 90, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Create log").borders(Borders::ALL),

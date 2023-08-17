@@ -75,4 +75,8 @@ pub trait UIElement {
     fn on_action(&mut self, _action :&Actions, _app_ctx :&mut AppContext) -> EventResult {
         EventResult::NotHandled
     }
+
+    fn set_focused(&mut self, _focused :bool) {
+
+    }
 }
