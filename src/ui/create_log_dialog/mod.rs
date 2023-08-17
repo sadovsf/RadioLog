@@ -3,7 +3,7 @@ extern crate unicode_width;
 use crossterm::event::{KeyEvent, KeyCode};
 use ratatui::{layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders}};
 
-use crate::{data::LogEntry, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
+use crate::{data::{LogEntry, position::Position}, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 mod input_fields;
 use input_fields::InputFields;
@@ -76,22 +76,23 @@ impl CreateLogDialog {
 
         self.state.opened = true;
         self.set_field(InputFields::Name, log.name.clone().unwrap_or("".to_string()));
-        self.set_field(InputFields::Latitude, log.lat.map(|v| v.to_string()).unwrap_or("".to_string()));
-        self.set_field(InputFields::Longtitude, log.long.map(|v| v.to_string()).unwrap_or("".to_string()));
+        self.set_field(InputFields::QTH, log.position().map(|v| v.to_qth()).unwrap_or("".to_string()));
 
         self.log_to_edit = log.rowid;
     }
 
 
     fn save(&mut self, app_ctx :&mut AppContext) {
+
+        let pos = Position::from_qth(self.get_field(InputFields::QTH));
+
         match self.log_to_edit.as_mut() {
             Some(row_id) => {
-
-                let result = app_ctx.data.logs.edit(LogEntry{
+                let result = app_ctx.data.logs.edit(LogEntry {
                     rowid: Some(*row_id),
                     name: Some(self.get_field(InputFields::Name).clone()),
-                    lat: self.get_field(InputFields::Latitude).parse().ok(),
-                    long: self.get_field(InputFields::Longtitude).parse().ok(),
+                    lat: pos.as_ref().map_or(None, |v| Some(v.latitude)),
+                    long: pos.as_ref().map_or(None, |v| Some(v.longitude)),
                     ..Default::default()
                 });
                 if result.is_err() {
@@ -102,8 +103,8 @@ impl CreateLogDialog {
             None => {
                 let res = app_ctx.data.logs.add(LogEntry{
                     name: Some(self.get_field(InputFields::Name).clone()),
-                    lat: self.get_field(InputFields::Latitude).parse().ok(),
-                    long: self.get_field(InputFields::Longtitude).parse().ok(),
+                    lat: pos.as_ref().map_or(None, |v| Some(v.latitude)),
+                    long: pos.as_ref().map_or(None, |v| Some(v.longitude)),
                     ..Default::default()
                 });
                 if res.is_err() {
@@ -160,8 +161,8 @@ impl CreateLogDialog {
             self.set_field(InputFields::Name, parts[0].to_string());
         }
 
-        self.set_field(InputFields::Latitude, top_location.latitude.to_string());
-        self.set_field(InputFields::Longtitude, top_location.longitude.to_string());
+        let top_position = Position::new(top_location.latitude, top_location.longitude);
+        self.set_field(InputFields::QTH, top_position.to_qth());
     }
 }
 
@@ -196,7 +197,7 @@ impl UIElement for CreateLogDialog {
             return Ok(());
         }
 
-        let area = DialogHelpers::center_rect_perc(50, 90, rect);
+        let area = DialogHelpers::center_rect_size(rect.width / 2, 10, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Create log").borders(Borders::ALL),

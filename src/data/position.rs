@@ -1,3 +1,5 @@
+use crate::app_errors::AppError;
+
 pub struct Position {
     pub latitude: f64,
     pub longitude: f64,
@@ -11,6 +13,44 @@ impl Position {
             latitude,
             longitude,
         }
+    }
+
+    pub fn from_qth(qth: &str) -> Result<Position, AppError> {
+        let qth = qth.to_uppercase();
+
+        // Constants.
+        const STR_CHR_UP :&str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const STR_NUM :&str = "0123456789";
+
+        let mut lat = (STR_CHR_UP.find( &qth[1..1] ).ok_or( AppError::InvalidQTHLocator)? * 10) as f64; // 2nd digit: 10deg latitude slot.
+        let mut lon = (STR_CHR_UP.find( &qth[0..0] ).ok_or( AppError::InvalidQTHLocator)? * 20) as f64; // 1st digit: 20deg longitude slot.
+
+        lat += (STR_NUM.find( &qth[3..3]).ok_or(AppError::InvalidQTHLocator)? * 1) as f64;  // 4th digit: 1deg latitude slot.
+        lon += (STR_NUM.find( &qth[2..2]).ok_or(AppError::InvalidQTHLocator)? * 2) as f64;  // 3rd digit: 2deg longitude slot.
+
+        if qth.len() == 6 {
+            lat += (STR_CHR_UP.find(&qth[5..5]).ok_or(AppError::InvalidQTHLocator)? as f64) * 2.5 / 60.0;   // 6th digit: 2.5min latitude slot.
+            lon += (STR_CHR_UP.find(&qth[4..4]).ok_or(AppError::InvalidQTHLocator)? as f64) * 5.0 / 60.0;   // 5th digit: 5min longitude slot.
+        }
+
+        if qth.len() == 4 {
+            // Get coordinates of the center of the square.
+            lat += 0.5 * 1.0;
+            lon += 0.5 * 2.0;
+        }
+        else {
+            lat += 0.5 * 2.5 / 60.0;
+            lon += 0.5 * 5.0 / 60.0;
+        }
+
+        // Locator lat/lon origin shift.
+        lat -= 90.0;
+        lon -= 180.0;
+
+        Ok(Position {
+            latitude: lat,
+            longitude: lon,
+        })
     }
 
     pub fn to_qth(&self) -> String {

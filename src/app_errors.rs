@@ -5,4 +5,7 @@ pub enum AppError {
 
     #[error("Failed to initialize database")]
     DatabaseError(#[from] rusqlite::Error),
+
+    #[error("Invalid QTH locator provided")]
+    InvalidQTHLocator
 }

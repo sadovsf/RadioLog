@@ -6,8 +6,7 @@ use std::fmt::Display;
 #[allow(unused)]
 pub enum InputFields {
     Name = 0,
-    Latitude,
-    Longtitude,
+    QTH,
     LAST
 }
 

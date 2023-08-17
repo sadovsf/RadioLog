@@ -54,7 +54,7 @@ impl UIElement for LogTable {
         let selected_style = Style::default().add_modifier(Modifier::REVERSED);
         let normal_style = Style::default().bg(Color::Blue);
 
-        let header_cells = [" Name ", " Time "]
+        let header_cells = [" Name ", " Time ", " QTH "]
             .iter()
             .map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)));
         let header = Row::new(header_cells)
@@ -71,6 +71,7 @@ impl UIElement for LogTable {
             let cells = [
                 Cell::from(item.name.as_ref().unwrap().clone()),
                 cell_time.map_or(Cell::from("Invalid format"), |t| Cell::from(t.to_string())),
+                item.position().map_or(Cell::from("Invalid format"), |p| Cell::from(p.to_qth())),
             ];
             Row::new(cells).height(1)
         });
