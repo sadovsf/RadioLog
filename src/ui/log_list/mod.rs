@@ -1,5 +1,5 @@
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{text::Span, widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}, prelude::Rect};
+use ratatui::{text::Span, widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}, prelude::Rect};
 
 use crate::{traits::{UIElement, RenderResult, EventResult}, common_types::RenderFrame, actions::Actions, app_context::AppContext, data::LogEntry};
 use super::{AlertDialogStyle, unique_ids::define_typed_element};

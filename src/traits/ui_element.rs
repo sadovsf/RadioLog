@@ -1,5 +1,5 @@
 use crossterm::event::KeyEvent;
-use tui::prelude::Rect;
+use ratatui::prelude::Rect;
 use crate::{actions::Actions, common_types::RenderFrame, app_context::AppContext};
 use thiserror::Error;
 

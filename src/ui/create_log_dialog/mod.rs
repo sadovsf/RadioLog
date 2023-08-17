@@ -1,7 +1,7 @@
 extern crate unicode_width;
 
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders}};
+use ratatui::{layout::{Rect, Layout, Direction, Constraint}, widgets::{Block, Clear, Borders}};
 
 use crate::{data::LogEntry, map_api::OnlineMap, traits::{DialogHelpers, EventResult, RenderResult, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 

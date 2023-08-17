@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tui::widgets::ListItem;
+use ratatui::widgets::ListItem;
 
 use crate::database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject};
 

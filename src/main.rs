@@ -17,7 +17,7 @@ use app_errors::AppError;
 
 
 use std::{io, cell::RefCell};
-use tui::{
+use ratatui::{
     backend::CrosstermBackend,
     Terminal
 };

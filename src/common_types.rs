@@ -1,5 +1,5 @@
 use std::io::Stdout;
-use tui::{backend::CrosstermBackend, Frame};
+use ratatui::{backend::CrosstermBackend, Frame};
 
 
 

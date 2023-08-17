@@ -1,4 +1,4 @@
-use tui::prelude::Rect;
+use ratatui::prelude::Rect;
 use crate::{traits::{UIElement, UIEvents, EventResult, RenderResult, TypedUIElement, UIElementType, RenderError}, common_types::RenderFrame, app_context::AppContext};
 
 

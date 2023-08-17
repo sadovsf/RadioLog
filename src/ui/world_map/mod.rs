@@ -2,11 +2,11 @@ mod map_shape;
 mod world;
 
 use crossterm::event::KeyCode;
-use tui::prelude::Rect;
-use tui::style::{Color, Style};
-use tui::text::Span;
-use tui::widgets::{Block, Borders};
-use tui::widgets::canvas::{Canvas, Context};
+use ratatui::prelude::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::text::Span;
+use ratatui::widgets::{Block, Borders};
+use ratatui::widgets::canvas::{Canvas, Context};
 
 use crate::actions::Actions;
 use crate::app_context::AppContext;
@@ -99,7 +99,7 @@ impl UIElement for WorldMap {
                 ctx.layer();
                 self.draw_points(ctx, app_ctx);
             })
-            .marker(tui::symbols::Marker::Braille)
+            .marker(ratatui::symbols::Marker::Braille)
             .x_bounds([self.state.top_left.longitude, self.state.top_left.longitude + (360.0 * self.state.zoom)])
             .y_bounds([self.state.top_left.latitude, self.state.top_left.latitude + (180.0 * self.state.zoom)]);
 

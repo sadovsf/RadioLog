@@ -1,5 +1,5 @@
 use crossterm::event::{KeyEvent, KeyCode};
-use tui::{prelude::{Rect, Alignment}, widgets::{Paragraph, Block, Wrap, Borders}, style::{Style, Color}};
+use ratatui::{prelude::{Rect, Alignment}, widgets::{Paragraph, Block, Wrap, Borders}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 use crate::{common_types::RenderFrame, traits::{UIElement, RenderResult, EventResult}, app_context::AppContext};
 

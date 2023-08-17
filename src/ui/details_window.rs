@@ -1,4 +1,4 @@
-use tui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::Span};
+use ratatui::{Frame, widgets::{Block, Borders, Clear, Paragraph}, layout::Rect, text::Span};
 use crate::{traits::{UIElement, RenderResult, EventResult}, data::LogEntry, actions::Actions, common_types::RenderFrame, app_context::AppContext};
 
 use super::unique_ids::define_typed_element;
@@ -21,7 +21,7 @@ impl DetailsWindow {
         self.state.selected_log = Some(log);
     }
 
-    fn render_info<B: tui::backend::Backend>(&self, f :&mut Frame<B>, label :&str, text :&String, rect :&mut Rect) -> () {
+    fn render_info<B: ratatui::backend::Backend>(&self, f :&mut Frame<B>, label :&str, text :&String, rect :&mut Rect) -> () {
 
         const LABELS_WIDTH :u16 = 13;
         f.render_widget(Paragraph::new(label), *rect);

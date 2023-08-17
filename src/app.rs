@@ -1,7 +1,7 @@
 use std::{time::{Instant, Duration}, io::Stdout};
 
 use crossterm::{event::{Event, self, KeyCode}, Result};
-use tui::{Terminal, backend::CrosstermBackend, prelude::{Rect, Layout, Direction, Constraint} };
+use ratatui::{Terminal, backend::CrosstermBackend, prelude::{Rect, Layout, Direction, Constraint} };
 
 use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element}, actions::Actions, traits::{RenderResult, EventResult, UIEvents, RenderError}, common_types::RenderFrame, ui_handler::{UIHandler, UIElementID}, app_context::AppContext};
 use crate::traits::UIElement;

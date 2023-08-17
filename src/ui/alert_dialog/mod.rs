@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use tui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
+use ratatui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
 use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult, RenderError, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
