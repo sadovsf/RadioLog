@@ -1,6 +1,6 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{time::{SystemTime, UNIX_EPOCH}};
 
-use ratatui::widgets::ListItem;
+use ratatui::{widgets::{ListItem, Cell, Row}, style::{Style, Color}};
 
 use crate::database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject};
 
@@ -68,14 +68,44 @@ impl DataStoreTrait for LogEntry {
     }
 }
 
+static HEADER_CELLS: [&str; 3] = [" Name ", " Time ", " QTH "];
 impl LogEntry {
+    pub fn table_header() -> Row<'static> {
+        Row::new(HEADER_CELLS.iter()
+            .map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)))
+        )
+    }
+
     pub fn position(&self) -> Option<Position> {
         Some(Position::new(
             self.lat?,
             self.long?,
         ))
     }
+
+    pub fn set_position(&mut self, pos :Position) {
+        self.lat = Some(pos.latitude);
+        self.long = Some(pos.longitude);
+    }
 }
+
+
+impl From<&LogEntry> for Row<'_> {
+    fn from(value: &LogEntry) -> Self {
+        if value.name.is_none() || value.time.is_none() {
+            return Row::new(vec!{Cell::from("Invalid data")});
+        }
+
+        let cell_time = chrono::NaiveDateTime::from_timestamp_opt(value.time.unwrap().into(), 0);
+        let cells = [
+            Cell::from(value.name.as_ref().unwrap().clone()),
+            cell_time.map_or(Cell::from("Invalid format"), |t| Cell::from(t.to_string())),
+            value.position().map_or(Cell::from("Missing"), |p| Cell::from(p.to_qth())),
+        ];
+        Row::new(cells).height(1)
+    }
+}
+
 
 
 impl Default for LogEntry {

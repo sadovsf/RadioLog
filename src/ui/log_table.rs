@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{widgets::{TableState, Cell, Row, Table, Block, Borders}, prelude::{Rect, Constraint}, style::{Style, Modifier, Color}};
+use ratatui::{widgets::{TableState, Row, Table, Block, Borders}, prelude::{Rect, Constraint}, style::{Style, Modifier, Color}};
 use crate::{traits::{UIElement, RenderResult, EventResult}, app_context::AppContext, common_types::RenderFrame, actions::Actions, data::LogEntry};
 
 use super::{define_typed_element, AlertDialogStyle};
@@ -54,27 +54,13 @@ impl UIElement for LogTable {
         let selected_style = Style::default().add_modifier(Modifier::REVERSED);
         let normal_style = Style::default().bg(Color::Blue);
 
-        let header_cells = [" Name ", " Time ", " QTH "]
-            .iter()
-            .map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)));
-        let header = Row::new(header_cells)
+        let header = LogEntry::table_header()
             .style(normal_style)
             .height(1)
             .bottom_margin(1);
 
-        let rows = app_ctx.data.logs.iter().map(|item| {
-            if item.name.is_none() || item.time.is_none() {
-                return Row::new(vec!{Cell::from("Invalid data")});
-            }
-
-            let cell_time = chrono::NaiveDateTime::from_timestamp_opt(item.time.unwrap().into(), 0);
-            let cells = [
-                Cell::from(item.name.as_ref().unwrap().clone()),
-                cell_time.map_or(Cell::from("Invalid format"), |t| Cell::from(t.to_string())),
-                item.position().map_or(Cell::from("Invalid format"), |p| Cell::from(p.to_qth())),
-            ];
-            Row::new(cells).height(1)
-        });
+        let rows = app_ctx.data.logs.iter()
+            .map(|item| Row::from(item));
 
         let t = Table::new(rows)
             .header(header)
