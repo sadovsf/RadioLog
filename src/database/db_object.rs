@@ -4,6 +4,7 @@ use rusqlite::Connection;
 
 pub enum SchemaStep {
     SQL(&'static str),
+    FN(&'static dyn Fn(&mut Connection) -> Result<(), rusqlite::Error>),
 }
 
 

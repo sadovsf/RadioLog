@@ -1,4 +1,4 @@
-use ratatui::layout::{Rect, Layout, Direction, Constraint};
+use ratatui::layout::Rect;
 use super::UIElement;
 
 

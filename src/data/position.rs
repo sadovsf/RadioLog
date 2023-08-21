@@ -103,6 +103,11 @@ impl Position {
 
         Distance::from_meters((2.0 * 6371e3 * total_delta.sqrt().asin() * 1000.0).round() / 1000.0)
     }
+
+    pub fn azimuth_to(&self, end: &Position) -> f64 {
+        // todo implement
+        0.0
+    }
 }
 
 

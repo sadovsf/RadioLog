@@ -80,7 +80,8 @@ impl Database {
             match step {
                 SchemaStep::SQL(sql) => {
                     self.connection.execute(sql, [])?;
-                }
+                },
+                SchemaStep::FN(fn_ptr) => fn_ptr(&mut self.connection)?,
             }
         }
 

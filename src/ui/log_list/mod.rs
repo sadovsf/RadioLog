@@ -54,10 +54,10 @@ impl<'a> UIElement for LogList<'a> {
             self.logs_cache = app_ctx.data.logs
                 .iter()
                 .map(|log| {
-                    if log.name.is_none() {
+                    if log.call.is_none() {
                         return ListItem::new(Span::raw("Unknown"));
                     }
-                    let span = Span::raw(log.name.as_ref().unwrap().clone());
+                    let span = Span::raw(log.call.as_ref().unwrap().clone());
                     ListItem::new(span)
                 })
                 .collect();
@@ -111,7 +111,7 @@ impl<'a> UIElement for LogList<'a> {
 
                 let log_info :&LogEntry = app_ctx.data.logs.get_by_index(to_del.unwrap()).unwrap();
                 app_ctx.actions.add(Actions::ShowConfirm(
-                    format!("Are you sure you want to delete log '{}'?", log_info.name.as_ref().unwrap()),
+                    format!("Are you sure you want to delete log '{}'?", log_info.call.as_ref().unwrap()),
                     AlertDialogStyle::Warning,
                     Box::new(Actions::DeleteLog(log_info.rowid.unwrap()))
                 ));

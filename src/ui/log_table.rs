@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{widgets::{TableState, Row, Table, Block, Borders}, prelude::{Rect, Constraint}, style::{Style, Modifier, Color}};
+use ratatui::{widgets::{TableState, Table, Block, Borders}, prelude::{Rect, Constraint}, style::{Style, Modifier, Color}};
 use crate::{traits::{UIElement, RenderResult, EventResult}, app_context::AppContext, common_types::RenderFrame, actions::Actions, data::LogEntry};
 
 use super::{define_typed_element, AlertDialogStyle};
@@ -56,11 +56,10 @@ impl UIElement for LogTable {
 
         let header = LogEntry::table_header()
             .style(normal_style)
-            .height(1)
-            .bottom_margin(1);
+            .height(1);
 
         let rows = app_ctx.data.logs.iter()
-            .map(|item| Row::from(item));
+            .map(|item| item.table_row(app_ctx));
 
         let t = Table::new(rows)
             .header(header)
@@ -71,11 +70,7 @@ impl UIElement for LogTable {
             )
             .highlight_style(selected_style)
             .highlight_symbol(">> ")
-            .widths(&[
-                Constraint::Percentage(50),
-                Constraint::Max(30),
-                Constraint::Min(10),
-            ]);
+            .widths(LogEntry::table_column_constraints());
         f.render_stateful_widget(t, rect, &mut self.state);
         Ok(())
     }
@@ -114,7 +109,7 @@ impl UIElement for LogTable {
 
                 let log_info :&LogEntry = app_ctx.data.logs.get_by_index(to_del.unwrap()).unwrap();
                 app_ctx.actions.add(Actions::ShowConfirm(
-                    format!("Are you sure you want to delete log '{}'?", log_info.name.as_ref().unwrap()),
+                    format!("Are you sure you want to delete log '{}'?", log_info.call.as_ref().unwrap()),
                     AlertDialogStyle::Warning,
                     Box::new(Actions::DeleteLog(log_info.rowid.unwrap()))
                 ));

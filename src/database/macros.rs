@@ -1,11 +1,15 @@
 
-
+macro_rules! count_tts {
+    () => {0usize};
+    ($_head:tt $($tail:tt)*) => {1usize + count_tts!($($tail)*)};
+}
 
 
 
 macro_rules! define_table {
     ($struct_name:ident, $($x:expr),+ $(,)?) => {
-        static SCHEMA :[SchemaStep; 1] = [
+        use crate::database::macros::count_tts;
+        const SCHEMA :[SchemaStep; count_tts!($($x)*)] = [
             $($x),+
         ];
 
@@ -22,3 +26,4 @@ macro_rules! define_table {
 }
 
 pub(crate) use define_table;
+pub(crate) use count_tts;

@@ -75,7 +75,7 @@ impl CreateLogDialog {
         }
 
         self.state.opened = true;
-        self.set_field(InputFields::Name, log.name.clone().unwrap_or("".to_string()));
+        self.set_field(InputFields::Name, log.call.clone().unwrap_or("".to_string()));
         self.set_field(InputFields::QTH, log.position().map(|v| v.to_qth()).unwrap_or("".to_string()));
 
         self.log_to_edit = log.rowid;
@@ -84,27 +84,27 @@ impl CreateLogDialog {
 
     fn save(&mut self, app_ctx :&mut AppContext) {
 
-        let pos = Position::from_qth(self.get_field(InputFields::QTH));
-
         match self.log_to_edit.as_mut() {
             Some(row_id) => {
-                let result = app_ctx.data.logs.edit(LogEntry {
-                    rowid: Some(*row_id),
-                    name: Some(self.get_field(InputFields::Name).clone()),
-                    lat: pos.as_ref().map_or(None, |v| Some(v.latitude)),
-                    long: pos.as_ref().map_or(None, |v| Some(v.longitude)),
-                    ..Default::default()
-                });
-                if result.is_err() {
-                    app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", result.err().unwrap())));
-                    return;
+                let log = app_ctx.data.logs.get(*row_id);
+                match log.map(|v| v.clone()) {
+                    Some(mut log) => {
+                        log.call = Some(self.get_field(InputFields::Name).clone());
+                        log.locator = Some(self.get_field(InputFields::QTH).clone());
+                        let result = app_ctx.data.logs.edit(log.clone());
+                        if result.is_err() {
+                            app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", result.err().unwrap())));
+                        }
+                    },
+                    None => {
+                        app_ctx.actions.add(Actions::ShowError(format!("Error: Log with id {} not found", row_id)));
+                    }
                 }
             },
             None => {
                 let res = app_ctx.data.logs.add(LogEntry{
-                    name: Some(self.get_field(InputFields::Name).clone()),
-                    lat: pos.as_ref().map_or(None, |v| Some(v.latitude)),
-                    long: pos.as_ref().map_or(None, |v| Some(v.longitude)),
+                    call: Some(self.get_field(InputFields::Name).clone()),
+                    locator: Some(self.get_field(InputFields::QTH).clone()),
                     ..Default::default()
                 });
                 if res.is_err() {
