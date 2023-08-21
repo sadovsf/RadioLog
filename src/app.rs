@@ -44,6 +44,9 @@ impl App {
 
         let mut last_tick = Instant::now();
         let mut frame_index :u8 = 0;
+
+        terminal.clear()?;
+
         loop {
             frame_index = frame_index.wrapping_add(1);
             terminal.draw(|f| {
