@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use ratatui::{widgets::{ListItem, Cell, Row}, style::{Style, Color}, prelude::Constraint};
-use crate::{database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject}, app_context::AppContext};
+use crate::{database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject}, app_context::AppContext, app_errors::AppError};
 use super::{Position, data_store::DataStoreTrait};
 use rusqlite::Connection;
 
@@ -157,7 +157,7 @@ impl LogEntry {
         if self.call.is_none() || self.time.is_none() {
             return Row::new(vec!{Cell::from("Invalid data")});
         }
-
+        let my_position = self.my_position(app_ctx);
         let cell_time = chrono::NaiveDateTime::from_timestamp_opt(self.time.unwrap().into(), 0);
         let cells = [
             // TIME
@@ -185,12 +185,24 @@ impl LogEntry {
             // DISTANCE
             self.position().map_or(
                 Cell::from(""),
-                |v| Cell::from(format!("{:.2}", v.distance_to(&app_ctx.data.config.own_position).km()))
+                |v| {
+                    let dist = match my_position {
+                        Ok(my_position) => my_position.distance_to(&v),
+                        Err(_) => return Cell::from("N/A")
+                    };
+                    Cell::from(format!("{:.2}", dist.km()))
+                }
             ),
             // AZIMUTH
             self.position().map_or(
                 Cell::from(""),
-                |v| Cell::from(format!("{:.1}", app_ctx.data.config.own_position.azimuth_to(&v)))
+                |v| {
+                    let azim = match my_position {
+                        Ok(my_position) => my_position.azimuth_to(&v),
+                        Err(_) => return Cell::from("N/A")
+                    };
+                    Cell::from(format!("{:.1}", azim))
+                }
             )
         ];
         Row::new(cells).height(1)
@@ -198,6 +210,17 @@ impl LogEntry {
 
     pub fn position(&self) -> Option<Position> {
         Position::from_qth(&self.locator.as_ref()?).ok()
+    }
+
+    pub fn my_position(&self, app_ctx :&AppContext) -> Result<Position, AppError> {
+        match self.race_id {
+            Some(race_id) => app_ctx.data.races.get(race_id).map_or(
+                Ok(app_ctx.data.config.own_position),
+                |v| Position::from_qth(&v.my_location).or(Err(AppError::InvalidQTHLocator))
+            ),
+            None => Ok(app_ctx.data.config.own_position)
+        }
+
     }
 }
 

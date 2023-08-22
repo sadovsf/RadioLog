@@ -1,5 +1,6 @@
 use crate::app_errors::AppError;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Position {
     pub latitude: f64,
     pub longitude: f64,
