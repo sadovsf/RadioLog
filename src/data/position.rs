@@ -105,8 +105,18 @@ impl Position {
     }
 
     pub fn azimuth_to(&self, end: &Position) -> f64 {
-        // todo implement
-        0.0
+        let phi1 = self.latitude.to_radians();
+        let phi2 = end.latitude.to_radians();
+        let lambda1 = self.longitude.to_radians();
+        let lambda2 = end.longitude.to_radians();
+
+        let y = (lambda2 - lambda1).sin() * phi2.cos();
+        let x = phi1.cos() * phi2.sin() - phi1.sin() * phi2.cos() * (lambda2 - lambda1).cos();
+
+        let mut azimuth = y.atan2(x).to_degrees() + 360.0;
+        if azimuth > 360.0 { azimuth -= 360.0; }
+
+        azimuth
     }
 }
 
