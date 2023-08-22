@@ -22,7 +22,7 @@ impl Default for CreateLogDialogState {
     fn default() -> Self {
         Self {
             opened: false,
-            current_input: InputFields::Name,
+            current_input: InputFields::Call,
         }
     }
 }
@@ -53,7 +53,7 @@ impl Default for CreateLogDialog {
                     .set_label(InputFields::from(idx).to_string())
             );
         }
-        me.set_focus(InputFields::Name);
+        me.set_focus(InputFields::Call);
         return me;
     }
 }
@@ -75,7 +75,8 @@ impl CreateLogDialog {
         }
 
         self.state.opened = true;
-        self.set_field(InputFields::Name, log.call.clone().unwrap_or("".to_string()));
+        self.set_field(InputFields::Call, log.call.clone().unwrap_or("".to_string()));
+        self.set_field(InputFields::Code, log.code.clone().unwrap_or("".to_string()));
         self.set_field(InputFields::QTH, log.position().map(|v| v.to_qth()).unwrap_or("".to_string()));
 
         self.log_to_edit = log.rowid;
@@ -89,8 +90,9 @@ impl CreateLogDialog {
                 let log = app_ctx.data.logs.get(*row_id);
                 match log.map(|v| v.clone()) {
                     Some(mut log) => {
-                        log.call = Some(self.get_field(InputFields::Name).clone());
+                        log.call = Some(self.get_field(InputFields::Call).clone());
                         log.locator = Some(self.get_field(InputFields::QTH).clone());
+                        log.code = Some(self.get_field(InputFields::Code).clone());
                         let result = app_ctx.data.logs.edit(log.clone());
                         if result.is_err() {
                             app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", result.err().unwrap())));
@@ -103,8 +105,10 @@ impl CreateLogDialog {
             },
             None => {
                 let res = app_ctx.data.logs.add(LogEntry{
-                    call: Some(self.get_field(InputFields::Name).clone()),
+                    call: Some(self.get_field(InputFields::Call).clone()),
                     locator: Some(self.get_field(InputFields::QTH).clone()),
+                    code: Some(self.get_field(InputFields::Code).clone()),
+                    race_id: app_ctx.data.current_race_id,
                     ..Default::default()
                 });
                 if res.is_err() {
@@ -134,13 +138,13 @@ impl CreateLogDialog {
             self.inputs[idx].clear();
         }
 
-        self.set_focus(InputFields::Name);
+        self.set_focus(InputFields::Call);
     }
 
 
 
     fn find_location(&mut self, name :&String, app_ctx :&mut AppContext) {
-        let results = OnlineMap::query_location(&self.get_field(InputFields::Name));
+        let results = OnlineMap::query_location(&self.get_field(InputFields::Call));
         if results.is_err() {
             app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", results.err().unwrap())));
             return;
@@ -156,9 +160,9 @@ impl CreateLogDialog {
         let parts :Vec<&str> = top_location.name.splitn(3, ',').collect();
 
         if parts.len() >= 2 {
-            self.set_field(InputFields::Name, format!("{},{}", parts[0], parts[1]));
+            self.set_field(InputFields::Call, format!("{},{}", parts[0], parts[1]));
         } else {
-            self.set_field(InputFields::Name, parts[0].to_string());
+            self.set_field(InputFields::Call, parts[0].to_string());
         }
 
         let top_position = Position::new(top_location.latitude, top_location.longitude);
@@ -197,7 +201,7 @@ impl UIElement for CreateLogDialog {
             return Ok(());
         }
 
-        let area = DialogHelpers::center_rect_size(rect.width / 2, 10, rect);
+        let area = DialogHelpers::center_rect_size(rect.width / 2, 13, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Create log").borders(Borders::ALL),
@@ -234,7 +238,7 @@ impl UIElement for CreateLogDialog {
             KeyCode::Tab => self.set_focus(self.state.current_input.next()),
             KeyCode::BackTab => self.set_focus(self.state.current_input.prev()),
             KeyCode::Enter => self.save(app_ctx),
-            KeyCode::PageDown => self.find_location(&self.get_field(InputFields::Name).clone(), app_ctx),
+            KeyCode::PageDown => self.find_location(&self.get_field(InputFields::Call).clone(), app_ctx),
             KeyCode::F(2) => self.clear_form(),
             _ => {
                 self.get_focused().on_input(key, app_ctx);

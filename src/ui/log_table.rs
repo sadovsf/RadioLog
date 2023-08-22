@@ -58,7 +58,8 @@ impl UIElement for LogTable {
             .style(normal_style)
             .height(1);
 
-        let rows = app_ctx.data.logs.iter()
+        let current_race_id = app_ctx.data.current_race_id;
+        let rows = app_ctx.data.race_logs(current_race_id)
             .map(|item| item.table_row(app_ctx));
 
         let t = Table::new(rows)

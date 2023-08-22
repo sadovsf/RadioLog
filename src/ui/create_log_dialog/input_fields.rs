@@ -5,7 +5,8 @@ use std::fmt::Display;
 #[repr(u8)]
 #[allow(unused)]
 pub enum InputFields {
-    Name = 0,
+    Call = 0,
+    Code,
     QTH,
     LAST
 }

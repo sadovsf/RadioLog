@@ -10,7 +10,7 @@ fn update_1(conn :&mut Connection) -> Result<(), rusqlite::Error> {
         panic!("Failed to prepare statement: {}", stmt.err().unwrap());
     }
     let mut stmt = stmt.unwrap();
-    let mut translated_logs = stmt.query_map((), |row| {
+    let translated_logs = stmt.query_map((), |row| {
         let id :i64 = row.get(0)?;
         let long :f64 = row.get(1)?;
         let lat :f64 = row.get(2)?;
@@ -23,6 +23,7 @@ fn update_1(conn :&mut Connection) -> Result<(), rusqlite::Error> {
             call: Some(call),
             code: None,
             locator: Some(Position::new(lat, long).to_qth()),
+            race_id: None,
         })
     })?;
 
@@ -69,7 +70,10 @@ define_table!(LogEntry,
     SchemaStep::SQL(
         "ALTER TABLE LogEntry RENAME COLUMN name TO call"
     ),
-    SchemaStep::FN( &|conn :&mut Connection| update_1(conn) )
+    SchemaStep::FN( &|conn :&mut Connection| update_1(conn) ),
+    SchemaStep::SQL(
+        "ALTER TABLE LogEntry ADD COLUMN race_id INTEGER"
+    ),
 );
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +83,7 @@ pub struct LogEntry {
     pub call: Option<String>,
     pub code: Option<String>,
     pub locator: Option<String>,
+    pub race_id: Option<i64>,
 }
 
 impl DBObjectSerializable for LogEntry {
@@ -89,13 +94,14 @@ impl DBObjectSerializable for LogEntry {
             call: row.get(2)?,
             code: row.get(3)?,
             locator: row.get(4)?,
+            race_id: row.get(5)?,
         })
     }
 
     fn insert_row(&mut self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
         conn.execute(
-            "INSERT INTO LogEntry (time, call, code, locator) VALUES (?1, ?2, ?3, ?4)",
-            (&self.time, &self.call, &self.code, &self.locator)
+            "INSERT INTO LogEntry (time, call, code, locator, race_id) VALUES (?1, ?2, ?3, ?4, ?5)",
+            (&self.time, &self.call, &self.code, &self.locator, &self.race_id)
         )?;
         self.rowid = Some(conn.last_insert_rowid());
         Ok(())
@@ -103,8 +109,8 @@ impl DBObjectSerializable for LogEntry {
 
     fn update_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
         conn.execute(
-            "UPDATE LogEntry SET time=?1, call=?2, code=?3, locator=?4 WHERE id=?5",
-            (&self.time, &self.call, &self.code, &self.locator, &self.rowid)
+            "UPDATE LogEntry SET time=?1, call=?2, code=?3, locator=?4, race_id=?5 WHERE id=?6",
+            (&self.time, &self.call, &self.code, &self.locator, &self.race_id, &self.rowid)
         )?;
         Ok(())
     }
@@ -205,6 +211,7 @@ impl Default for LogEntry {
             code: Some("".to_string()),
             locator: Some("".to_string()),
             rowid: None,
+            race_id: None,
         }
     }
 }
