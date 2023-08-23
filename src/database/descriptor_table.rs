@@ -1,11 +1,11 @@
 use rusqlite::Connection;
 
-use super::{DBSchemaObject, SchemaStep, macros::define_table, db_object::DBObjectSerializable};
+use super::{DBSchemaObject, SchemaStep, macros::declare_table, db_object::DBObjectSerializable};
 
 
 
 
-define_table!(TableDescriptor,
+declare_table!(TableDescriptor,
     SchemaStep::SQL(
         "CREATE TABLE TableDescriptor (
             name TEXT PRIMARY KEY NOT NULL,

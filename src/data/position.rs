@@ -17,6 +17,9 @@ impl Position {
     }
 
     pub fn from_qth(qth: &str) -> Result<Position, AppError> {
+        if qth.len() < 4 || qth.len() > 6 {
+            return Err(AppError::InvalidQTHLocator);
+        }
         let qth = qth.to_uppercase();
 
         // Constants.

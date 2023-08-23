@@ -1,5 +1,5 @@
 use ratatui::prelude::Rect;
-use crate::{traits::{UIElement, UIEvents, EventResult, RenderResult, TypedUIElement, UIElementType, RenderError}, common_types::RenderFrame, app_context::AppContext};
+use crate::{traits::{UIElement, UIEvents, EventResult, RenderResult, UIElementType, RenderError}, common_types::RenderFrame, app_context::AppContext};
 
 
 
@@ -41,21 +41,22 @@ impl UIHandler {
         id
     }
 
-    unsafe fn downcast_element<T>(item :&mut dyn UIElement) -> &mut T {
-        let ptr = item as *mut dyn UIElement as *mut T;
-        &mut *ptr
-    }
+    // Currently not needed but may be usefull in the future.
+    // unsafe fn downcast_element<T>(item :&mut dyn UIElement) -> &mut T {
+    //     let ptr = item as *mut dyn UIElement as *mut T;
+    //     &mut *ptr
+    // }
 
-    pub fn get<T :TypedUIElement>(&mut self, id :&UIElementID) -> Result<&mut T, String> {
-        let element = self.elements[id.index].element.as_mut();
-        if element.get_type() != id.element_type {
-            return Err("Element type mismatch".to_string());
-        }
-        if element.get_type() != T::get_type_type() {
-            return Err("Element type mismatch".to_string());
-        }
-        Ok(unsafe { UIHandler::downcast_element::<T>(element) })
-    }
+    // pub fn get<T :TypedUIElement>(&mut self, id :&UIElementID) -> Result<&mut T, String> {
+    //     let element = self.elements[id.index].element.as_mut();
+    //     if element.get_type() != id.element_type {
+    //         return Err("Element type mismatch".to_string());
+    //     }
+    //     if element.get_type() != T::get_type_type() {
+    //         return Err("Element type mismatch".to_string());
+    //     }
+    //     Ok(unsafe { UIHandler::downcast_element::<T>(element) })
+    // }
 
     pub fn send_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
         if let Some(index) = self.focused_index {

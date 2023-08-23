@@ -1,10 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use ratatui::{widgets::{ListItem, Cell, Row}, style::{Style, Color}, prelude::Constraint};
-use crate::{database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject}, app_context::AppContext, app_errors::AppError};
+use crate::{database::{macros::{declare_table, define_table_data}, SchemaStep, DBObjectSerializable, DBSchemaObject}, app_context::AppContext, app_errors::AppError};
 use super::{Position, data_store::DataStoreTrait};
 use rusqlite::Connection;
 
-fn update_1(conn :&mut Connection) -> Result<(), rusqlite::Error> {
+fn change_location_storage(conn :&mut Connection) -> Result<(), rusqlite::Error> {
     let stmt = conn.prepare("SELECT * FROM LogEntry");
     if stmt.is_err() {
         panic!("Failed to prepare statement: {}", stmt.err().unwrap());
@@ -57,81 +57,32 @@ fn update_1(conn :&mut Connection) -> Result<(), rusqlite::Error> {
 
 
 
-define_table!(LogEntry,
+declare_table!(LogEntry,
     SchemaStep::SQL(
         "CREATE TABLE LogEntry (
-            id INTEGER PRIMARY KEY,
-            long REAL,
-            lat REAL,
-            time UINT,
+            id   INTEGER PRIMARY KEY,
+            long REAL   ,
+            lat  REAL   ,
+            time UINT   ,
             name TEXT
         )"
     ),
     SchemaStep::SQL(
         "ALTER TABLE LogEntry RENAME COLUMN name TO call"
     ),
-    SchemaStep::FN( &|conn :&mut Connection| update_1(conn) ),
+    SchemaStep::FN( &|conn :&mut Connection| change_location_storage(conn) ),
     SchemaStep::SQL(
         "ALTER TABLE LogEntry ADD COLUMN race_id INTEGER"
-    ),
+    )
 );
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct LogEntry {
-    pub id: i64,
-    pub time: u32,
-    pub call: String,
-    pub locator: String,
-    pub code: Option<String>,
-    pub race_id: Option<i64>,
-}
-
-impl DBObjectSerializable for LogEntry {
-    fn from_row(row :&rusqlite::Row) -> Result<Self, rusqlite::Error> {
-        Ok(Self {
-            id: row.get(0)?,
-            time: row.get(1)?,
-            call: row.get(2)?,
-            code: row.get(3)?,
-            locator: row.get(4)?,
-            race_id: row.get(5)?,
-        })
-    }
-
-    fn insert_row(&mut self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
-        conn.execute(
-            "INSERT INTO LogEntry (time, call, code, locator, race_id) VALUES (?1, ?2, ?3, ?4, ?5)",
-            (&self.time, &self.call, &self.code, &self.locator, &self.race_id)
-        )?;
-        self.id = conn.last_insert_rowid();
-        Ok(())
-    }
-
-    fn update_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
-        conn.execute(
-            "UPDATE LogEntry SET time=?1, call=?2, code=?3, locator=?4, race_id=?5 WHERE id=?6",
-            (&self.time, &self.call, &self.code, &self.locator, &self.race_id, &self.id)
-        )?;
-        Ok(())
-    }
-
-    fn delete_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
-        conn.execute("DELETE FROM LogEntry WHERE id=?1", [&self.id])?;
-        Ok(())
-    }
-}
-
-
-
-impl DataStoreTrait for LogEntry {
-    fn set_id(&mut self, id: i64) {
-        self.id = id;
-    }
-
-    fn get_id(&self) -> i64 {
-        self.id
-    }
-}
+define_table_data!(LogEntry,
+    (time   : u32           ),
+    (call   : String        ),
+    (locator: String        ),
+    (code   : Option<String>),
+    (race_id: Option<i64>   )
+);
 
 static HEADER_CELLS: [&str; 7] = [" Time ", " Call ", " ID ", " Code ", " QTH ", " Dst(km) ", " Azim "];
 impl LogEntry {

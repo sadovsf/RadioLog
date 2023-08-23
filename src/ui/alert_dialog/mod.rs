@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph}, style::{Style, Color}};
+use ratatui::{layout::{Constraint, Layout, Direction, Rect}, widgets::{Clear, Block, Borders, Paragraph, Wrap}, style::{Style, Color}};
 use unicode_width::UnicodeWidthStr;
 
 use crate::{traits::{DialogInterface, DialogHelpers, EventResult, RenderResult, RenderError, UIElement}, actions::Actions, common_types::RenderFrame, app_context::AppContext};
@@ -19,6 +19,7 @@ bitflags::bitflags! {
 }
 
 #[derive(Clone, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum AlertDialogStyle {
     Default,
     Warning,
@@ -149,7 +150,13 @@ impl UIElement for AlertDialog {
             return Ok(());
         }
 
-        let area = DialogHelpers::center_rect_size((10 + self.message.width()).max(80) as u16, 10, rect);
+
+        let area = DialogHelpers::center_rect_size(
+            (10 + self.message.width()).min(
+                rect.width.saturating_sub(15) as usize
+            ) as u16,
+            10, rect
+        );
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default()
@@ -191,7 +198,8 @@ impl UIElement for AlertDialog {
 
         f.render_widget(
             Paragraph::new(self.message.clone())
-                .style(Style::default().fg(Color::White)),
+                .style(Style::default().fg(Color::White))
+                .wrap(Wrap { trim: true }),
                 msg_rect
         );
 
