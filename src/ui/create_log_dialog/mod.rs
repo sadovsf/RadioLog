@@ -70,16 +70,12 @@ impl CreateLogDialog {
     }
 
     pub fn edit(&mut self, log :&LogEntry) {
-        if log.rowid.is_none() {
-            return;
-        }
-
         self.state.opened = true;
-        self.set_field(InputFields::Call, log.call.clone().unwrap_or("".to_string()));
+        self.set_field(InputFields::Call, log.call.clone());
         self.set_field(InputFields::Code, log.code.clone().unwrap_or("".to_string()));
         self.set_field(InputFields::QTH, log.position().map(|v| v.to_qth()).unwrap_or("".to_string()));
 
-        self.log_to_edit = log.rowid;
+        self.log_to_edit = Some(log.id);
     }
 
 
@@ -90,8 +86,8 @@ impl CreateLogDialog {
                 let log = app_ctx.data.logs.get(*row_id);
                 match log.map(|v| v.clone()) {
                     Some(mut log) => {
-                        log.call = Some(self.get_field(InputFields::Call).clone());
-                        log.locator = Some(self.get_field(InputFields::QTH).clone());
+                        log.call = self.get_field(InputFields::Call).clone();
+                        log.locator = self.get_field(InputFields::QTH).clone();
                         log.code = Some(self.get_field(InputFields::Code).clone());
                         let result = app_ctx.data.logs.edit(log.clone());
                         if result.is_err() {
@@ -105,8 +101,8 @@ impl CreateLogDialog {
             },
             None => {
                 let res = app_ctx.data.logs.add(LogEntry{
-                    call: Some(self.get_field(InputFields::Call).clone()),
-                    locator: Some(self.get_field(InputFields::QTH).clone()),
+                    call: self.get_field(InputFields::Call).clone(),
+                    locator: self.get_field(InputFields::QTH).clone(),
                     code: Some(self.get_field(InputFields::Code).clone()),
                     race_id: app_ctx.data.current_race_id,
                     ..Default::default()

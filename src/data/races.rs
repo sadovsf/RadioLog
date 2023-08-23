@@ -1,5 +1,5 @@
-use crate::{database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject}};
-
+use ratatui::widgets::ListItem;
+use crate::database::{macros::define_table, SchemaStep, DBObjectSerializable, DBSchemaObject};
 use super::data_store::DataStoreTrait;
 
 
@@ -66,5 +66,11 @@ impl DataStoreTrait for Race {
 
     fn get_id(&self) -> i64 {
         self.id.expect("Race.id is None")
+    }
+}
+
+impl<'a> Into<ListItem<'a>> for Race {
+    fn into(self) -> ListItem<'a> {
+        ListItem::new(self.name)
     }
 }

@@ -61,8 +61,8 @@ impl UIElement for DetailsWindow {
         };
 
         let log = self.state.selected_log.as_ref().unwrap();
-        self.render_info(f, "Name:", log.call.as_ref().unwrap(), &mut rect);
-        self.render_info(f, "Locator:", log.locator.as_ref().unwrap(), &mut rect);
+        self.render_info(f, "Name:", &log.call, &mut rect);
+        self.render_info(f, "Locator:", &log.locator, &mut rect);
 
         match log.position() {
             Some(pos) => {

@@ -27,7 +27,7 @@ impl<'a> LogList<'a> {
             },
             None => 0,
         };
-        app_ctx.data.logs.get_by_index(i).unwrap().rowid.unwrap()
+        app_ctx.data.logs.get_by_index(i).unwrap().id
     }
 
     pub fn previous(&self, app_ctx :&mut AppContext) -> i64 {
@@ -42,7 +42,7 @@ impl<'a> LogList<'a> {
             },
             None => 0,
         };
-        app_ctx.data.logs.get_by_index(i).unwrap().rowid.unwrap()
+        app_ctx.data.logs.get_by_index(i).unwrap().id
     }
 }
 
@@ -54,10 +54,7 @@ impl<'a> UIElement for LogList<'a> {
             self.logs_cache = app_ctx.data.logs
                 .iter()
                 .map(|log| {
-                    if log.call.is_none() {
-                        return ListItem::new(Span::raw("Unknown"));
-                    }
-                    let span = Span::raw(log.call.as_ref().unwrap().clone());
+                    let span = Span::raw(log.call.clone());
                     ListItem::new(span)
                 })
                 .collect();
@@ -98,7 +95,7 @@ impl<'a> UIElement for LogList<'a> {
             KeyCode::Enter => {
                 if let Some(log_idx) = self.state.selected() {
                     let log = app_ctx.data.logs.get_by_index(log_idx).unwrap();
-                    app_ctx.actions.add(Actions::EditLog(log.rowid.unwrap()));
+                    app_ctx.actions.add(Actions::EditLog(log.id));
                 }
                 EventResult::Handled
             },
@@ -111,9 +108,9 @@ impl<'a> UIElement for LogList<'a> {
 
                 let log_info :&LogEntry = app_ctx.data.logs.get_by_index(to_del.unwrap()).unwrap();
                 app_ctx.actions.add(Actions::ShowConfirm(
-                    format!("Are you sure you want to delete log '{}'?", log_info.call.as_ref().unwrap()),
+                    format!("Are you sure you want to delete log '{}'?", log_info.call),
                     AlertDialogStyle::Warning,
-                    Box::new(Actions::DeleteLog(log_info.rowid.unwrap()))
+                    Box::new(Actions::DeleteLog(log_info.id))
                 ));
                 EventResult::Handled
             },

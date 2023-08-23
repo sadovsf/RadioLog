@@ -18,11 +18,11 @@ fn update_1(conn :&mut Connection) -> Result<(), rusqlite::Error> {
         let call :String = row.get(4)?;
 
         Ok(LogEntry {
-            rowid: Some(id),
-            time: Some(time),
-            call: Some(call),
+            id: id,
+            time: time,
+            call: call,
             code: None,
-            locator: Some(Position::new(lat, long).to_qth()),
+            locator: Position::new(lat, long).to_qth(),
             race_id: None,
         })
     })?;
@@ -78,18 +78,18 @@ define_table!(LogEntry,
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogEntry {
-    pub rowid: Option<i64>,
-    pub time: Option<u32>,
-    pub call: Option<String>,
+    pub id: i64,
+    pub time: u32,
+    pub call: String,
+    pub locator: String,
     pub code: Option<String>,
-    pub locator: Option<String>,
     pub race_id: Option<i64>,
 }
 
 impl DBObjectSerializable for LogEntry {
     fn from_row(row :&rusqlite::Row) -> Result<Self, rusqlite::Error> {
         Ok(Self {
-            rowid: row.get(0)?,
+            id: row.get(0)?,
             time: row.get(1)?,
             call: row.get(2)?,
             code: row.get(3)?,
@@ -103,20 +103,20 @@ impl DBObjectSerializable for LogEntry {
             "INSERT INTO LogEntry (time, call, code, locator, race_id) VALUES (?1, ?2, ?3, ?4, ?5)",
             (&self.time, &self.call, &self.code, &self.locator, &self.race_id)
         )?;
-        self.rowid = Some(conn.last_insert_rowid());
+        self.id = conn.last_insert_rowid();
         Ok(())
     }
 
     fn update_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
         conn.execute(
             "UPDATE LogEntry SET time=?1, call=?2, code=?3, locator=?4, race_id=?5 WHERE id=?6",
-            (&self.time, &self.call, &self.code, &self.locator, &self.race_id, &self.rowid)
+            (&self.time, &self.call, &self.code, &self.locator, &self.race_id, &self.id)
         )?;
         Ok(())
     }
 
     fn delete_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
-        conn.execute("DELETE FROM LogEntry WHERE id=?1", [&self.rowid])?;
+        conn.execute("DELETE FROM LogEntry WHERE id=?1", [&self.id])?;
         Ok(())
     }
 }
@@ -125,11 +125,11 @@ impl DBObjectSerializable for LogEntry {
 
 impl DataStoreTrait for LogEntry {
     fn set_id(&mut self, id: i64) {
-        self.rowid = Some(id);
+        self.id = id;
     }
 
     fn get_id(&self) -> i64 {
-        self.rowid.expect("LogEntry.rowid is None")
+        self.id
     }
 }
 
@@ -154,11 +154,8 @@ impl LogEntry {
     }
 
     pub fn table_row(&self, app_ctx :& AppContext) -> Row {
-        if self.call.is_none() || self.time.is_none() {
-            return Row::new(vec!{Cell::from("Invalid data")});
-        }
         let my_position = self.my_position(app_ctx);
-        let cell_time = chrono::NaiveDateTime::from_timestamp_opt(self.time.unwrap().into(), 0);
+        let cell_time = chrono::NaiveDateTime::from_timestamp_opt(self.time.into(), 0);
         let cells = [
             // TIME
             cell_time.map_or(
@@ -166,10 +163,7 @@ impl LogEntry {
                 |t| Cell::from(t.to_string())
             ),
             // CALL
-            self.call.as_ref().map_or(
-                Cell::from(""),
-                |v| Cell::from(v.clone())
-            ),
+            Cell::from(self.call.clone()),
             // ID
             Cell::from(format!("{}", self.get_id())),
             // CODE
@@ -209,7 +203,7 @@ impl LogEntry {
     }
 
     pub fn position(&self) -> Option<Position> {
-        Position::from_qth(&self.locator.as_ref()?).ok()
+        Position::from_qth(&self.locator).ok()
     }
 
     pub fn my_position(&self, app_ctx :&AppContext) -> Result<Position, AppError> {
@@ -229,11 +223,11 @@ impl LogEntry {
 impl Default for LogEntry {
     fn default() -> Self {
         LogEntry {
-            time: Some(SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backward").as_secs() as u32),
-            call: Some("".to_string()),
-            code: Some("".to_string()),
-            locator: Some("".to_string()),
-            rowid: None,
+            time: SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backward").as_secs() as u32,
+            call: "".to_string(),
+            code: None,
+            locator: "".to_string(),
+            id: 0,
             race_id: None,
         }
     }
@@ -241,6 +235,6 @@ impl Default for LogEntry {
 
 impl<'a> Into<ListItem<'a>> for LogEntry {
     fn into(self) -> ListItem<'a> {
-        ListItem::new(self.call.expect("LogEntry.name is None"))
+        ListItem::new(self.call)
     }
 }
