@@ -3,7 +3,7 @@ use std::{time::{Instant, Duration}, io::Stdout};
 use crossterm::{event::{Event, self, KeyCode}, Result};
 use ratatui::{Terminal, backend::CrosstermBackend, prelude::{Rect, Layout, Direction, Constraint} };
 
-use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element}, actions::Actions, traits::{RenderResult, EventResult, UIEvents, RenderError}, common_types::RenderFrame, ui_handler::{UIHandler, UIElementID}, app_context::AppContext};
+use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element, ManageRacesDialog}, actions::Actions, traits::{RenderResult, EventResult, UIEvents, RenderError}, common_types::RenderFrame, ui_handler::{UIHandler, UIElementID}, app_context::AppContext};
 use crate::traits::UIElement;
 
 
@@ -28,6 +28,7 @@ impl App {
 
         let mut dialogs = UIHandler::default();
         dialogs.add(Box::new(CreateLogDialog::default()));
+        dialogs.add(Box::new(ManageRacesDialog::default()));
 
 
         App {
@@ -52,6 +53,10 @@ impl App {
             terminal.draw(|f| {
                 if let Err(error) = self.draw_app(f, frame_index, &mut app_context) {
                     self.pop_error(error.to_string());
+                }
+
+                if let Some(alert) = self.alert_dialog.as_mut() {
+                    alert.on_draw(f, f.size(), &mut app_context).expect("Failed to draw alert dialog");
                 }
             })?;
 
@@ -121,9 +126,6 @@ impl App {
 
         ///// Render common dialogs on top:
         self.dialogs.draw_all(frame_index, f, app_ctx)?;
-        if let Some(alert) = self.alert_dialog.as_mut() {
-            alert.on_draw(f, f.size(), app_ctx)?;
-        }
 
         ///// Process accumulated actions:
         self.process_actions(app_ctx);

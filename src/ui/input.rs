@@ -18,6 +18,8 @@ pub struct Input {
 
     cursor_pos :usize,
     cursor_byte_pos :usize,
+
+    border_style :Style
 }
 define_typed_element!(Input);
 
@@ -26,10 +28,6 @@ impl Input {
     pub fn set_label(mut self, label :String) -> Self {
         self.label = Some(label);
         self
-    }
-
-    pub fn set_focused(&mut self, focused :bool) {
-        self.is_focused = focused;
     }
 
     pub fn clear(&mut self) {
@@ -95,7 +93,7 @@ impl<'a> UIElement for Input {
     implement_typed_element!();
 
     fn render(&mut self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
-        let mut block = Block::default().borders(Borders::ALL);
+        let mut block = Block::default().borders(Borders::ALL).style(self.border_style);
         if let Some(label) = &self.label {
             block = block.title(label.clone());
         }
@@ -159,6 +157,16 @@ impl<'a> UIElement for Input {
                 EventResult::Handled
             },
             _ => EventResult::NotHandled
+        }
+    }
+
+    fn set_focused(&mut self, focused :bool) {
+        if focused {
+            self.is_focused = true;
+            self.border_style = Style::default();//.fg(Color::Yellow);
+        } else {
+            self.is_focused = false;
+            self.border_style = Style::default();
         }
     }
 }

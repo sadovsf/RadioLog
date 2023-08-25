@@ -1,5 +1,5 @@
 use ratatui::prelude::Rect;
-use crate::{traits::{UIElement, UIEvents, EventResult, RenderResult, UIElementType, RenderError}, common_types::RenderFrame, app_context::AppContext};
+use crate::{traits::{UIElement, UIEvents, EventResult, RenderResult, UIElementType, RenderError, TypedUIElement}, common_types::RenderFrame, app_context::AppContext};
 
 
 
@@ -41,27 +41,29 @@ impl UIHandler {
         id
     }
 
-    // Currently not needed but may be usefull in the future.
-    // unsafe fn downcast_element<T>(item :&mut dyn UIElement) -> &mut T {
-    //     let ptr = item as *mut dyn UIElement as *mut T;
-    //     &mut *ptr
-    // }
+    unsafe fn downcast_element<T>(item :&mut dyn UIElement) -> &mut T {
+        let ptr = item as *mut dyn UIElement as *mut T;
+        &mut *ptr
+    }
 
-    // pub fn get<T :TypedUIElement>(&mut self, id :&UIElementID) -> Result<&mut T, String> {
-    //     let element = self.elements[id.index].element.as_mut();
-    //     if element.get_type() != id.element_type {
-    //         return Err("Element type mismatch".to_string());
-    //     }
-    //     if element.get_type() != T::get_type_type() {
-    //         return Err("Element type mismatch".to_string());
-    //     }
-    //     Ok(unsafe { UIHandler::downcast_element::<T>(element) })
-    // }
+    pub fn get<T :TypedUIElement>(&mut self, id :&UIElementID) -> Result<&mut T, String> {
+        let element = self.elements[id.index].element.as_mut();
+        if element.get_type() != id.element_type {
+            return Err("Element type mismatch".to_string());
+        }
+        if element.get_type() != T::get_type_type() {
+            return Err("Element type mismatch".to_string());
+        }
+        Ok(unsafe { UIHandler::downcast_element::<T>(element) })
+    }
 
     pub fn send_event(&mut self, event :&UIEvents, app_ctx :&mut AppContext) -> EventResult {
         if let Some(index) = self.focused_index {
             let element = &mut self.elements[index];
-            return element.element.on_event(event, app_ctx);
+            let res = element.element.on_event(event, app_ctx);
+            if res != EventResult::NOOP {
+                return res;
+            }
         }
 
         let mut result = EventResult::NotHandled;
@@ -121,5 +123,61 @@ impl UIHandler {
             }
             self.focused_index = Some(index);
         }
+    }
+
+    pub fn focus_previous(&mut self) {
+        if self.elements.len() == 0 && self.focused_index.is_some() {
+            panic!("Invalid ui handler state. Empty elements list while having focused index.");
+        }
+        if self.elements.len() == 0 {
+            return;
+        }
+
+        if self.focused_index.is_none() {
+            self.focused_index = Some(self.elements.len() - 1);
+            self.elements.last_mut().unwrap().element.set_focused(true);
+            return;
+        }
+
+        if let Some(index) = self.focused_index {
+            let mut index = index + self.elements.len() - 1;
+            if index >= self.elements.len() {
+                index = index - self.elements.len();
+            }
+
+            if index != self.focused_index.unwrap() {
+                self.elements[self.focused_index.unwrap()].element.set_focused(false);
+                self.elements[index].element.set_focused(true);
+            }
+            self.focused_index = Some(index);
+        }
+    }
+
+    pub fn get_focused(&mut self) -> Option<&mut Box<dyn UIElement>> {
+        if let Some(index) = self.focused_index {
+            Some(&mut self.elements[index].element)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_focused_id(&mut self) -> Option<UIElementID> {
+        if let Some(index) = self.focused_index {
+            Some(UIElementID {
+                index,
+                element_type: self.elements[index].element.get_type()
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn set_focused(&mut self, id :&UIElementID) {
+        if self.focused_index.is_some() {
+            self.elements[self.focused_index.unwrap()].element.set_focused(false);
+        }
+
+        self.focused_index = Some(id.index);
+        self.elements[self.focused_index.unwrap()].element.set_focused(true);
     }
 }

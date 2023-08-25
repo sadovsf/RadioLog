@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{widgets::{TableState, Table, Block, Borders}, prelude::Rect, style::{Style, Modifier, Color}};
+use ratatui::{widgets::{TableState, Table, Block, Borders, Row}, prelude::Rect, style::{Style, Modifier, Color}};
 use crate::{traits::{UIElement, RenderResult, EventResult}, app_context::AppContext, common_types::RenderFrame, actions::Actions, data::LogEntry};
 
 use super::{define_typed_element, AlertDialogStyle};
@@ -15,8 +15,9 @@ define_typed_element!(LogTable);
 
 
 impl LogTable {
-    pub fn next(&self, app_ctx :&mut AppContext) -> i64 {
-        let log_count = app_ctx.data.logs.len();
+    fn next(&self, app_ctx :&mut AppContext) -> i64 {
+        let current_race_id = app_ctx.data.current_race_id;
+        let log_count = app_ctx.data.race_logs(current_race_id).count();
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= log_count - 1 {
@@ -30,8 +31,9 @@ impl LogTable {
         app_ctx.data.logs.get_by_index(i).unwrap().id
     }
 
-    pub fn previous(&self, app_ctx :&mut AppContext) -> i64 {
-        let log_count = app_ctx.data.logs.len();
+    fn previous(&self, app_ctx :&mut AppContext) -> i64 {
+        let current_race_id = app_ctx.data.current_race_id;
+        let log_count = app_ctx.data.race_logs(current_race_id).count();
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -43,6 +45,14 @@ impl LogTable {
             None => 0,
         };
         app_ctx.data.logs.get_by_index(i).unwrap().id
+    }
+
+    fn selected_log(&self, app_ctx :&mut AppContext) -> Option<i64> {
+        if let Some(i) = self.state.selected() {
+            let current_race_id = app_ctx.data.current_race_id;
+            return app_ctx.data.race_logs(current_race_id).nth(i).map_or(None, |item| Some(item.id))
+        }
+        None
     }
 }
 
@@ -59,8 +69,16 @@ impl UIElement for LogTable {
             .height(1);
 
         let current_race_id = app_ctx.data.current_race_id;
-        let rows = app_ctx.data.race_logs(current_race_id)
-            .map(|item| item.table_row(app_ctx));
+        let rows :Vec<Row> = app_ctx.data.race_logs(current_race_id)
+            .map(|item| item.table_row(app_ctx)).collect();
+
+        if let Some(sel_index) = self.state.selected() {
+            if rows.len() == 0 {
+                self.state.select(None);
+            } else if sel_index >= rows.len() {
+                self.state.select(Some(rows.len() - 1));
+            }
+        }
 
         let t = Table::new(rows)
             .header(header)
@@ -95,20 +113,19 @@ impl UIElement for LogTable {
             },
 
             KeyCode::Enter => {
-                if let Some(log_idx) = self.state.selected() {
-                    let log = app_ctx.data.logs.get_by_index(log_idx).unwrap();
-                    app_ctx.actions.add(Actions::EditLog(log.id));
+                if let Some(log_id) = self.selected_log(app_ctx) {
+                    app_ctx.actions.add(Actions::EditLog(log_id));
                 }
                 EventResult::Handled
             },
 
             KeyCode::Delete => {
-                let to_del = self.state.selected();
+                let to_del = self.selected_log(app_ctx);
                 if to_del.is_none() {
                     return EventResult::NotHandled;
                 }
 
-                let log_info :&LogEntry = app_ctx.data.logs.get_by_index(to_del.unwrap()).unwrap();
+                let log_info :&LogEntry = app_ctx.data.logs.get(to_del.unwrap()).unwrap();
                 app_ctx.actions.add(Actions::ShowConfirm(
                     format!("Are you sure you want to delete log '{}'?", log_info.call),
                     AlertDialogStyle::Warning,

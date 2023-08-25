@@ -7,6 +7,7 @@ use crate::ui::AlertDialogStyle;
 #[derive(Clone, PartialEq)]
 pub enum Actions {
     DeleteLog(i64),
+    DeleteRace(i64),
 
     ShowError(String),
     ShowConfirm(String, AlertDialogStyle, Box<Actions>),
