@@ -1,9 +1,9 @@
 use std::{time::{Instant, Duration}, io::Stdout};
 
 use crossterm::{event::{Event, self, KeyCode}, Result};
-use ratatui::{Terminal, backend::CrosstermBackend, prelude::{Rect, Layout, Direction, Constraint} };
+use ratatui::{Terminal, backend::CrosstermBackend, prelude::Rect };
 
-use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element, ManageRacesDialog}, actions::Actions, traits::{RenderResult, EventResult, UIEvents, RenderError}, common_types::RenderFrame, ui_handler::{UIHandler, UIElementID}, app_context::AppContext};
+use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element, ManageRacesDialog}, actions::Actions, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame, ui_handler::UIHandler, app_context::AppContext};
 use crate::traits::UIElement;
 
 
@@ -11,9 +11,6 @@ const TICK_RATE :Duration = std::time::Duration::from_millis(60);
 pub struct App {
     ui_elements :UIHandler,
     dialogs :UIHandler,
-
-    logs_input :UIElementID,
-    logs_table :UIElementID,
 
     alert_dialog :Option<AlertDialog>,
 }
@@ -23,8 +20,7 @@ define_typed_element!(App);
 impl App {
     pub fn new() -> App {
         let mut handler = UIHandler::default();
-        let logs_input = handler.add(Box::new(ui::LogsInput::default()));
-        let logs_table = handler.add(Box::new(ui::LogTable::default()));
+        handler.add(Box::new(ui::LogTable::default()));
 
         let mut dialogs = UIHandler::default();
         dialogs.add(Box::new(CreateLogDialog::default()));
@@ -34,8 +30,6 @@ impl App {
         App {
             alert_dialog: None,
             ui_elements: handler,
-            logs_table,
-            logs_input,
             dialogs: dialogs,
         }
     }
@@ -100,28 +94,6 @@ impl App {
 
     fn draw_app(&mut self, f :&mut RenderFrame, frame_index :u8, app_ctx :&mut AppContext) -> RenderResult {
         ///// Draw elements:
-        let [log_rect, map_rect] = *Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints(
-                [
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(80),
-                ].as_ref()
-            )
-            .split(f.size())
-        else {
-            return Err(RenderError::LayoutError);
-        };
-
-        self.ui_elements.draw_single(
-            &self.logs_input,
-            frame_index, f, log_rect, app_ctx
-        )?;
-        self.ui_elements.draw_single(
-            &self.logs_table,
-            frame_index, f, map_rect, app_ctx
-        )?;
         self.ui_elements.draw_all(frame_index, f, app_ctx)?;
 
         ///// Render common dialogs on top:
