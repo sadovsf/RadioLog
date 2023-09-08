@@ -110,7 +110,11 @@ impl Database {
     }
 
     #[allow(dead_code)]
-    pub fn select_where<T :DBObjectSerializable + DBSchemaObject>(&mut self, where_clause :&str, params :&[&dyn rusqlite::ToSql]) -> Result<Vec<T>, rusqlite::Error> {
+    pub fn select_where<T, P>(&mut self, where_clause :&str, params :P) -> Result<Vec<T>, rusqlite::Error>
+    where
+        T: DBObjectSerializable + DBSchemaObject,
+        P: rusqlite::Params
+    {
         let mut stmt = self.connection.prepare(format!("select * from {} where {}", T::table_name(), where_clause).as_str() )?;
         let iter = stmt.query_map(params, |row| T::from_row(row) )?;
 

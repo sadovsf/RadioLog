@@ -45,4 +45,13 @@ impl<'a> Data<'a> {
     pub fn race_logs(&self, race_id :Option<i64>) -> impl Iterator<Item = &LogEntry> {
         self.logs.iter().filter(move |v| race_id.is_none() || (*v).race_id == race_id)
     }
+
+    pub fn my_position(&self) -> Position {
+        match self.current_race_id {
+            Some(id) => self.races.get(id).map(
+                |r| Position::from_qth(&r.my_location)
+            ).map_or(self.config.own_position, |v| v.unwrap()),
+            None => self.config.own_position
+        }
+    }
 }

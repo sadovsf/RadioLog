@@ -11,10 +11,11 @@ use crate::traits::DialogInterface;
 
 use super::{define_typed_element, Input};
 
+mod existing_logs_window;
+use existing_logs_window::ExistingLogsWindow;
 
 pub struct CreateLogDialogState {
     opened: bool,
-
     current_input: InputFields,
 }
 
@@ -220,6 +221,20 @@ impl UIElement for CreateLogDialog {
         for (idx, input) in self.inputs.iter_mut().enumerate() {
             input.on_draw(f, popup_layout[idx], app_ctx)?;
         };
+
+
+        let logs_window = ExistingLogsWindow::from_search(
+            app_ctx,
+            self.get_field(InputFields::Call)
+        );
+        if logs_window.is_ok() {
+            logs_window.unwrap().on_draw(f, Rect {
+                x: 0,
+                y: 0,
+                width: 30,
+                height: 10
+            }, app_ctx)?;
+        }
 
         Ok(())
     }

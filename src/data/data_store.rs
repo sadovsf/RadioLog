@@ -99,6 +99,13 @@ impl<'a, T> DataStore<'a, T>
         self.list.get(*index)
     }
 
+    pub fn get_where<P>(&mut self, where_clause :&str, params :P) -> Result<Vec<T>, rusqlite::Error>
+    where
+        P: rusqlite::Params
+    {
+        self.get_db().select_where(where_clause, params)
+    }
+
     pub fn get_by_index(&self, index :usize) -> Option<&T> {
         self.list.get(index)
     }
