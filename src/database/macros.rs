@@ -39,7 +39,7 @@ macro_rules! define_table_data {
 
         impl DBObjectSerializable for $struct_name {
 
-            fn insert_row(&mut self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+            fn insert_row(&mut self, conn :&rusqlite::Connection) -> Result<(), rusqlite::Error> {
                 let sql = {
                     let mut sql = format!("INSERT INTO {} (", stringify!($struct_name));
                     $(
@@ -65,7 +65,7 @@ macro_rules! define_table_data {
                 Ok(())
             }
 
-            fn update_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+            fn update_row(&self, conn :&rusqlite::Connection) -> Result<(), rusqlite::Error> {
                 let sql = {
                     let mut sql = format!("UPDATE {} SET ", stringify!($struct_name));
                     let mut val_index = 0;
@@ -91,7 +91,7 @@ macro_rules! define_table_data {
                     ),+
                 })
             }
-            fn delete_row(&self, conn :&mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+            fn delete_row(&self, conn :&rusqlite::Connection) -> Result<(), rusqlite::Error> {
                 conn.execute(concat!("DELETE FROM ", stringify!($struct_name), " WHERE id=?1"), [&self.id])?;
                 Ok(())
             }
@@ -101,7 +101,7 @@ macro_rules! define_table_data {
             fn set_id(&mut self, id: i64) {
                 self.id = id;
             }
-        
+
             fn get_id(&self) -> i64 {
                 self.id
             }

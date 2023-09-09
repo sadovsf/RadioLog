@@ -52,7 +52,7 @@ impl ExistingLogsWindow<'_> {
 impl UIElement for ExistingLogsWindow<'_> {
     implement_typed_element!();
 
-    fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
+    fn render(&mut self, f :&mut RenderFrame, rect :Rect, _app_ctx :&mut AppContext) -> RenderResult {
         if self.rows.len() == 0 {
             return Ok(());
         }

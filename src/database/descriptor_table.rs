@@ -37,17 +37,17 @@ impl DBObjectSerializable for TableDescriptor {
         })
     }
 
-    fn update_row(&self, conn :&mut Connection) -> Result<(), rusqlite::Error> {
+    fn update_row(&self, conn :&Connection) -> Result<(), rusqlite::Error> {
         conn.execute("UPDATE TableDescriptor SET schema_version=?1 WHERE name=?2", (&self.schema_version, &self.name))?;
         Ok(())
     }
 
-    fn delete_row(&self, conn :&mut Connection) -> Result<(), rusqlite::Error> {
+    fn delete_row(&self, conn :&Connection) -> Result<(), rusqlite::Error> {
         conn.execute("DELETE FROM TableDescriptor WHERE name=?1", [&self.name])?;
         Ok(())
     }
 
-    fn insert_row(&mut self, conn :&mut Connection) -> Result<(), rusqlite::Error> {
+    fn insert_row(&mut self, conn :&Connection) -> Result<(), rusqlite::Error> {
         conn.execute("INSERT INTO TableDescriptor (name, schema_version) VALUES (?1, ?2)", (&self.name, &self.schema_version))?;
         Ok(())
     }

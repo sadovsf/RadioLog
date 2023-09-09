@@ -76,24 +76,25 @@ impl Database {
             return Ok(());
         }
 
+        let ts = self.connection.transaction()?;
         for step in &schema[last_known_version as usize..] {
             match step {
                 SchemaStep::SQL(sql) => {
-                    self.connection.execute(sql, [])?;
+                    ts.execute(sql, [])?;
                 },
-                SchemaStep::FN(fn_ptr) => fn_ptr(&mut self.connection)?,
+                SchemaStep::FN(fn_ptr) => fn_ptr(&ts)?,
             }
         }
 
         if descriptor.is_some() {
             let mut descriptor = descriptor.unwrap();
             descriptor.schema_version = schema.len() as u32;
-            self.update(&descriptor)?;
+            descriptor.update_row(&ts)?;
         } else {
-            self.insert(
-                &mut TableDescriptor::from_table::<T>()
-            )?;
+            let mut descriptor = TableDescriptor::from_table::<T>();
+            descriptor.insert_row(&ts)?;
         }
+        ts.commit()?;
 
         Ok(())
     }

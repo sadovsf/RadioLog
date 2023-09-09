@@ -4,7 +4,7 @@ use crate::{database::{macros::{declare_table, define_table_data}, SchemaStep, D
 use super::{Position, data_store::DataStoreTrait};
 use rusqlite::Connection;
 
-fn change_location_storage(conn :&mut Connection) -> Result<(), rusqlite::Error> {
+fn change_location_storage(conn :&Connection) -> Result<(), rusqlite::Error> {
     let stmt = conn.prepare("SELECT * FROM LogEntry");
     if stmt.is_err() {
         panic!("Failed to prepare statement: {}", stmt.err().unwrap());
@@ -38,14 +38,12 @@ fn change_location_storage(conn :&mut Connection) -> Result<(), rusqlite::Error>
     }
     drop(stmt);
 
-    let tx = conn.transaction().expect("Failed to start update transaction");
-    tx.execute_batch("
+    conn.execute_batch("
         ALTER TABLE LogEntry DROP COLUMN long;
         ALTER TABLE LogEntry DROP COLUMN lat;
         ALTER TABLE LogEntry ADD COLUMN code TEXT;
         ALTER TABLE LogEntry ADD COLUMN locator TEXT;
     ")?;
-    tx.commit()?;
 
     for log in unpacked_logs {
         log.update_row(conn).expect("Failed to update row");
@@ -70,7 +68,7 @@ declare_table!(LogEntry,
     SchemaStep::SQL(
         "ALTER TABLE LogEntry RENAME COLUMN name TO call"
     ),
-    SchemaStep::FN( &|conn :&mut Connection| change_location_storage(conn) ),
+    SchemaStep::FN( &|conn :&Connection| change_location_storage(conn) ),
     SchemaStep::SQL(
         "ALTER TABLE LogEntry ADD COLUMN race_id INTEGER"
     )
