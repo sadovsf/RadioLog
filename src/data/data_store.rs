@@ -1,4 +1,6 @@
 use std::{collections::HashMap, cell::{RefCell, RefMut}};
+use rusqlite::Connection;
+
 use crate::database::{Database, DBObjectSerializable, DBSchemaObject};
 
 

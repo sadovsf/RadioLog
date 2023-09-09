@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use ratatui::{prelude::{Rect, Constraint}, widgets::{TableState, Table, Block, Borders, Row, Clear}, style::{Style, Color}};
 
-use crate::{ui::define_typed_element, traits::{UIElement, RenderResult}, common_types::RenderFrame, app_context::AppContext, data::position::Position};
+use crate::{ui::define_typed_element, traits::{UIElement, RenderResult}, common_types::RenderFrame, app_context::AppContext, data::{position::Position, LogEntry}, database::DBObjectSerializable};
 
 
 
@@ -23,27 +23,32 @@ impl ExistingLogsWindow<'_> {
             });
         }
 
-        let logs = app_ctx.data.logs.get_where(
-            "like(?1, call) > 0", [format!("%{}%", term)]
-        )?;
-
-        let mut map :HashMap<&str, u32> = HashMap::new();
-        for log in &logs {
-            let count = map.get(log.locator.as_str()).unwrap_or(&0);
-            map.insert(log.locator.as_str(), count + 1);
-        }
+        let db = app_ctx.db.borrow();
+        let conn = db.get_connection();
+        let mut stmt = conn.prepare("SELECT call, locator, COUNT(locator) FROM LogEntry WHERE like(?1, call) > 0 GROUP BY lower(call), lower(locator) ORDER BY call, locator")?;
+        let mut rows = stmt.query([format!("%{}%", term)])?;
 
         let my_pos = app_ctx.data.my_position();
-        let rows :Vec<Row> = map.iter().map(|(k, v)|
-            Row::new([
-                v.to_string(),
-                k.to_string(),
-                format!("{:.1}", Position::from_qth(k).map_or(0.0, |v| v.azimuth_to(&my_pos)))
-            ])
-        ).collect();
+        let mut final_rows = vec![];
+        while let Some(row) = rows.next()? {
+            let call :String = row.get(0)?;
+            let locator :String = row.get(1)?;
+            let count :i64 = row.get(2)?;
+
+            let pos = Position::from_qth(&locator).unwrap_or(my_pos);
+            let azimuth = pos.azimuth_to(&my_pos);
+
+            let table_row = Row::new([
+                call,
+                locator,
+                format!("{}", count),
+                format!("{:.1}", azimuth)
+            ]);
+            final_rows.push(table_row);
+        }
 
         Ok(Self {
-            rows,
+            rows: final_rows,
             state: TableState::default(),
         })
     }
@@ -64,13 +69,14 @@ impl UIElement for ExistingLogsWindow<'_> {
             Table::new(self.rows.clone())
                 .block(Block::default().title("Existing logs").borders(Borders::ALL))
                 .header(
-                    Row::new(["Count", "QTH", "Azim"])
+                    Row::new(["Call", "QTH", "#", "Azim"])
                         .style(Style::default().bg(Color::Cyan))
                 )
                 .widths(&[
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(40),
-                    Constraint::Percentage(40)
+                    Constraint::Percentage(30),
+                    Constraint::Min(7),
+                    Constraint::Min(3),
+                    Constraint::Min(6)
                 ]),
             rect,
             &mut self.state

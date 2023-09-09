@@ -198,7 +198,8 @@ impl UIElement for CreateLogDialog {
             return Ok(());
         }
 
-        let area = DialogHelpers::center_rect_size(rect.width / 2, 13, rect);
+        let mut area = DialogHelpers::center_rect_size(rect.width / 2, 13, rect);
+        area.x += rect.width / 5;
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Create log").borders(Borders::ALL),
@@ -231,9 +232,11 @@ impl UIElement for CreateLogDialog {
             logs_window.unwrap().on_draw(f, Rect {
                 x: 0,
                 y: 0,
-                width: 30,
+                width: 50,
                 height: 10
             }, app_ctx)?;
+        } else {
+            app_ctx.actions.add(Actions::ShowError(format!("Error: {:?}", logs_window.err().unwrap())));
         }
 
         Ok(())

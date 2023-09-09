@@ -108,7 +108,7 @@ impl UIElement for ManageRacesDialog {
             return Ok(());
         }
 
-        let area = DialogHelpers::center_rect_size(rect.width / 2, 13, rect);
+        let area = DialogHelpers::center_rect_size((rect.width / 4) * 3, 15, rect);
         f.render_widget(Clear, area); //this clears out the background
         f.render_widget(
             Block::default().title("Manage races").borders(Borders::ALL),

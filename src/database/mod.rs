@@ -137,4 +137,8 @@ impl Database {
     pub fn delete(&mut self, obj :&impl DBObjectSerializable) -> Result<(), rusqlite::Error> {
         obj.delete_row(&mut self.connection)
     }
+
+    pub fn get_connection(&self) -> &Connection {
+        &self.connection
+    }
 }
