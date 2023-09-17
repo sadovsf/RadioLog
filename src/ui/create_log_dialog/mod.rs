@@ -224,9 +224,10 @@ impl UIElement for CreateLogDialog {
         };
 
 
-        let logs_window = ExistingLogsWindow::from_search(
+        let logs_window = ExistingLogsWindow::from_call_search(
             app_ctx,
-            self.get_field(InputFields::Call)
+            self.get_field(InputFields::Call),
+            self.get_field(InputFields::QTH)
         );
         if logs_window.is_ok() {
             logs_window.unwrap().on_draw(f, Rect {
