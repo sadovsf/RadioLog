@@ -1,5 +1,4 @@
 mod log_list;
-pub use log_list::LogList;
 
 mod races_list;
 pub use races_list::RacesList;
@@ -22,7 +21,6 @@ pub use alert_dialog::AlertDialogButton;
 pub use alert_dialog::AlertDialogStyle;
 
 mod details_window;
-pub use details_window::DetailsWindow;
 
 mod input;
 pub use input::Input;

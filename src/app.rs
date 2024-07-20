@@ -3,7 +3,7 @@ use std::{time::{Instant, Duration}, io::Stdout};
 use crossterm::{event::{Event, self, KeyCode}, Result};
 use ratatui::{Terminal, backend::CrosstermBackend, prelude::Rect };
 
-use crate::{ui::{self, CreateLogDialog, AlertDialog, AlertDialogButton, AlertDialogStyle, define_typed_element, ManageRacesDialog}, actions::Actions, traits::{RenderResult, EventResult, UIEvents}, common_types::RenderFrame, ui_handler::UIHandler, app_context::AppContext};
+use crate::{actions::Actions, app_context::AppContext, common_types::RenderFrame, traits::{EventResult, RenderResult, UIEvents}, ui::{self, define_typed_element, AlertDialog, AlertDialogButton, AlertDialogStyle, CreateLogDialog, ManageRacesDialog, WorldMap}, ui_handler::{UIElementID, UIHandler}};
 use crate::traits::UIElement;
 
 
@@ -25,12 +25,13 @@ impl App {
         let mut dialogs = UIHandler::default();
         dialogs.add(Box::new(CreateLogDialog::default()));
         dialogs.add(Box::new(ManageRacesDialog::default()));
+        dialogs.add(Box::new(ui::WorldMap::default()));
 
 
         App {
             alert_dialog: None,
             ui_elements: handler,
-            dialogs: dialogs,
+            dialogs,
         }
     }
 
@@ -153,12 +154,16 @@ impl UIElement for App {
         Ok(())
     }
 
-    fn on_input(&mut self, key :&event::KeyEvent, _app_ctx :&mut AppContext) -> EventResult {
+    fn on_input(&mut self, key :&event::KeyEvent, app_ctx :&mut AppContext) -> EventResult {
         match key.code {
             KeyCode::Tab => {
                 self.ui_elements.focus_next();
                 EventResult::Handled
             },
+            KeyCode::Char('m') => {
+                app_ctx.actions.add(Actions::ToggleMap);
+                EventResult::Handled
+            }
             _ => EventResult::NotHandled
         }
     }

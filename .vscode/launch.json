@@ -8,6 +8,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Cargo launch",
+            "cwd": "${workspaceFolder}",
             "cargo": {
                 "args": [
                     "build",

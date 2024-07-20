@@ -85,7 +85,7 @@ impl UIElement for LogTable {
             .block(
                 Block::default()
                     .border_style(self.border_style)
-                    .borders(Borders::ALL).title("Logs")
+                    .borders(Borders::ALL).title("Logs - (a)dd, CTRL+(r)aces, toggle (m)ap")
             )
             .highlight_style(selected_style)
             .highlight_symbol(">> ")

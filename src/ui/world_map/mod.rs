@@ -5,14 +5,14 @@ use crossterm::event::KeyCode;
 use ratatui::prelude::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders};
+use ratatui::widgets::{Block, Borders, Clear};
 use ratatui::widgets::canvas::{Canvas, Context};
 
 use crate::actions::Actions;
 use crate::app_context::AppContext;
 use crate::common_types::RenderFrame;
 use crate::data::position::Position;
-use crate::traits::{UIElement, RenderResult, EventResult};
+use crate::traits::{DialogHelpers, DialogInterface, EventResult, RenderResult, UIElement};
 
 use self::map_shape::MapShape;
 
@@ -24,6 +24,7 @@ pub struct WorldMapWidgetState {
     pub zoom :f64,
 
     pub selected_position :Option<Position>,
+    pub is_opened :bool,
 }
 
 impl Default for WorldMapWidgetState {
@@ -32,7 +33,8 @@ impl Default for WorldMapWidgetState {
             top_left: Position::new(-90.0, -180.0),
             zoom: 1.0,
 
-            selected_position: None
+            selected_position: None,
+            is_opened: false
         }
     }
 }
@@ -47,6 +49,7 @@ define_typed_element!(WorldMap);
 
 
 impl WorldMap {
+
     fn zoom_map(&mut self, zoom :f64) {
         let old_center = self.map_center();
         self.state.zoom += zoom;
@@ -57,7 +60,7 @@ impl WorldMap {
         self.state.top_left.latitude += old_center.latitude - new_center.latitude;
     }
 
-    pub fn draw_points(&self, ctx :&mut Context, app_ctx :&AppContext) {
+    fn draw_points(&self, ctx :&mut Context, app_ctx :&AppContext) {
         ctx.print(
             app_ctx.data.config.own_position.longitude,
             app_ctx.data.config.own_position.latitude,
@@ -90,8 +93,18 @@ impl UIElement for WorldMap {
     implement_typed_element!();
 
     fn render(&mut self, f :&mut RenderFrame, rect :Rect, app_ctx :&mut AppContext) -> RenderResult {
+        if !self.is_opened() {
+            return Ok(());
+        }
+
+        let area = DialogHelpers::center_rect_size(rect.width, rect.height, rect);
+        f.render_widget(Clear, area); //this clears out the background
+
         let canvas = Canvas::default()
-            .block(Block::default().title("World").borders(Borders::ALL))
+            .block(
+                Block::default().title("World (+- to zoom, arrows to move)")
+                .borders(Borders::ALL)
+            )
             .paint(|ctx| {
                 ctx.draw(&MapShape {
                     color: Color::White,
@@ -110,6 +123,14 @@ impl UIElement for WorldMap {
 
     fn on_action(&mut self, action :&crate::actions::Actions, app_ctx :&mut AppContext) -> crate::traits::EventResult {
         match action {
+            Actions::ToggleMap => {
+                if self.is_opened() {
+                    self.close();
+                } else {
+                    self.open();
+                }
+                EventResult::Handled
+            },
             Actions::FocusLog(log_id) => {
                 if let Some(log_id) = log_id {
                     if let Some(log) = app_ctx.data.logs.get(*log_id) {
@@ -127,6 +148,10 @@ impl UIElement for WorldMap {
     }
 
     fn on_input(&mut self, key :&crossterm::event::KeyEvent, _app_ctx :&mut AppContext) -> EventResult {
+        if ! self.is_opened() {
+            return EventResult::NOOP;
+        }
+
         match key.code {
             // Map controls:
             KeyCode::Char('+') => {
@@ -138,24 +163,35 @@ impl UIElement for WorldMap {
                 EventResult::Handled
             },
 
-            KeyCode::Char('8') => {
+            KeyCode::Up => {
                 self.state.top_left.latitude += 5.0;
                 EventResult::Handled
             },
-            KeyCode::Char('5') => {
+            KeyCode::Down => {
                 self.state.top_left.latitude -= 5.0;
                 EventResult::Handled
             },
-            KeyCode::Char('4') => {
+            KeyCode::Left => {
                 self.state.top_left.longitude -= 5.0;
                 EventResult::Handled
             },
-            KeyCode::Char('6') => {
+            KeyCode::Right => {
                 self.state.top_left.longitude += 5.0;
                 EventResult::Handled
             },
 
             _ => EventResult::NotHandled
         }
+    }
+}
+
+
+impl DialogInterface for WorldMap {
+    fn set_opened(&mut self, opened :bool) {
+        self.state.is_opened = opened;
+    }
+
+    fn is_opened(&self) -> bool {
+        self.state.is_opened
     }
 }

@@ -216,7 +216,7 @@ impl UIElement for CreateLogDialog {
         let popup_layout = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
-            .constraints(constraints.as_ref())
+            .constraints(constraints)
             .split(area);
 
         for (idx, input) in self.inputs.iter_mut().enumerate() {

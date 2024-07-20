@@ -61,7 +61,7 @@ impl UIHandler {
         if let Some(index) = self.focused_index {
             let element = &mut self.elements[index];
             let res = element.element.on_event(event, app_ctx);
-            if res != EventResult::NOOP {
+            if res == EventResult::Handled {
                 return res;
             }
         }

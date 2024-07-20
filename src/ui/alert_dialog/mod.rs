@@ -214,7 +214,7 @@ impl UIElement for AlertDialog {
             .direction(Direction::Horizontal)
             .horizontal_margin(3)
             .vertical_margin(1)
-            .constraints(constr_array.as_ref())
+            .constraints(constr_array)
             .split(btns_rect);
 
         for (index, button) in self.buttons.iter().enumerate() {
