@@ -179,6 +179,10 @@ impl UIElement for WorldMap {
                 self.state.top_left.longitude += 5.0;
                 EventResult::Handled
             },
+            KeyCode::Esc => {
+                self.close();
+                EventResult::Handled
+            },
 
             _ => EventResult::NotHandled
         }
