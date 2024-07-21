@@ -3,7 +3,7 @@ use std::{time::{Instant, Duration}, io::Stdout};
 use crossterm::{event::{Event, self, KeyCode}, Result};
 use ratatui::{Terminal, backend::CrosstermBackend, prelude::Rect };
 
-use crate::{actions::Actions, app_context::AppContext, common_types::RenderFrame, traits::{EventResult, RenderResult, UIEvents}, ui::{self, define_typed_element, AlertDialog, AlertDialogButton, AlertDialogStyle, CreateLogDialog, ManageRacesDialog, WorldMap}, ui_handler::{UIElementID, UIHandler}};
+use crate::{actions::Actions, app_context::AppContext, common_types::RenderFrame, traits::{EventResult, RenderResult, UIEvents}, ui::{self, define_typed_element, AlertDialog, AlertDialogButton, AlertDialogStyle, CreateLogDialog, ManageRacesDialog}, ui_handler::UIHandler};
 use crate::traits::UIElement;
 
 

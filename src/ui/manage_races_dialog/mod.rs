@@ -1,5 +1,5 @@
-use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
-use ratatui::{prelude::{Rect, Layout, Direction, Constraint}, widgets::{Clear, Block, Borders}};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::{prelude::{Constraint, Direction, Layout, Rect}, widgets::{Block, Borders, Clear, Paragraph}};
 
 use crate::{traits::{DialogInterface, UIElement, RenderResult, DialogHelpers, EventResult, UIEvents}, common_types::RenderFrame, app_context::AppContext, actions::Actions, ui_handler::{UIHandler, UIElementID}, data::Race};
 
@@ -9,6 +9,7 @@ use super::{define_typed_element, RacesList, Input};
 #[derive(Default)]
 pub struct ManageRacesDialogState {
     opened: bool,
+    edited_race_id: Option<i64>,
 }
 
 pub struct ManageRacesDialog {
@@ -53,18 +54,38 @@ impl ManageRacesDialog {
             return;
         }
 
-        let res = app_ctx.data.races.add(Race {
-            name: race_name,
-            my_location: self.get_val(self.race_my_loc_inp),
-            my_call: self.get_val(self.race_my_call_inp),
-            ..Default::default()
-        });
+        let res;
+        if let Some(race_id) = self.state.edited_race_id {
+            match app_ctx.data.races.get(race_id).map(|race| race.clone()) {
+                Some(mut race) => {
+                    race.my_call = self.get_val(self.race_my_call_inp);
+                    race.my_location = self.get_val(self.race_my_loc_inp);
+                    race.name = self.get_val(self.race_name_inp);
+                    res = app_ctx.data.races.edit(race);
+
+                    self.state.edited_race_id = None;
+                }
+                None => {
+                    app_ctx.actions.add(Actions::ShowError("Unable to update selected race".to_string()));
+                    return;
+                }
+            }
+        } else {
+            res = app_ctx.data.races.add(Race {
+                name: race_name,
+                my_location: self.get_val(self.race_my_loc_inp),
+                my_call: self.get_val(self.race_my_call_inp),
+                ..Default::default()
+            });
+        }
+
         if res.is_err() {
-            app_ctx.actions.add(Actions::ShowError(format!("Error creating race: {:?}", res.err().unwrap())));
+            app_ctx.actions.add(Actions::ShowError(format!("Error managing race: {:?}", res.err().unwrap())));
         }
     }
 
     fn clear_inputs(&mut self) {
+        self.state.edited_race_id = None;
         [
             &self.race_name_inp,
             &self.race_my_loc_inp,
@@ -76,6 +97,21 @@ impl ManageRacesDialog {
 
     fn get_val(&mut self, id :UIElementID) -> String {
         self.handler.get::<Input>(&id).expect("Invalid UI state").get().clone()
+    }
+
+    fn set_val(&mut self, id :UIElementID, val :String) {
+        self.handler.get::<Input>(&id).expect("Invalid UI state").set(val);
+    }
+
+    fn edit_race(&mut self, id :i64, app_ctx :&mut AppContext) {
+        self.clear_inputs();
+
+        if let Some(race) = app_ctx.data.races.get(id) {
+            self.state.edited_race_id = Some(id);
+            self.set_val(self.race_name_inp, race.name.clone());
+            self.set_val(self.race_my_loc_inp, race.my_location.clone());
+            self.set_val(self.race_my_call_inp, race.my_call.clone());
+        }
     }
 }
 
@@ -119,7 +155,7 @@ impl UIElement for ManageRacesDialog {
             .margin(2)
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(40),
+                Constraint::Percentage(50),
                 Constraint::Min(1),
             ]).split(area);
 
@@ -129,10 +165,19 @@ impl UIElement for ManageRacesDialog {
                     Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Length(3),
-                    Constraint::Length(1)
+                    Constraint::Length(2)
                 ]).split(layout[1]);
 
         self.frame_index = self.frame_index.wrapping_add(1);
+
+        let help_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(40),
+                Constraint::Min(1),
+            ]).split(inputs_layout[3]);
+        f.render_widget(Paragraph::new("CTRL+S to save"), help_layout[1]);
+
         self.handler.draw_single(&self.race_list, self.frame_index, f, layout[0], app_ctx)?;
         self.handler.draw_single(&self.race_name_inp, self.frame_index, f, inputs_layout[0], app_ctx)?;
         self.handler.draw_single(&self.race_my_loc_inp, self.frame_index, f, inputs_layout[1], app_ctx)?;
@@ -176,8 +221,15 @@ impl UIElement for ManageRacesDialog {
         EventResult::Handled
     }
 
-    fn on_action(&mut self, _action :&Actions, _app_ctx :&mut AppContext) -> EventResult {
-
+    fn on_action(&mut self, action :&Actions, app_ctx :&mut AppContext) -> EventResult {
+        match action {
+            &Actions::EditRace(race_id) => {
+                self.open();
+                self.edit_race(race_id, app_ctx);
+                return EventResult::Handled;
+            }
+            _ => {}
+        }
         EventResult::NotHandled
     }
 }

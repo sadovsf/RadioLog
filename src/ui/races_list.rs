@@ -1,7 +1,7 @@
 use crossterm::event::{KeyEvent, KeyCode};
 use ratatui::{widgets::{ListItem, List, Borders, Block, ListState}, style::{Style, Color, Modifier}, prelude::Rect};
 
-use crate::{traits::{UIElement, RenderResult, EventResult}, common_types::RenderFrame, actions::Actions, app_context::AppContext};
+use crate::{actions::Actions, app, app_context::AppContext, common_types::RenderFrame, traits::{EventResult, RenderResult, UIElement}};
 use super::{AlertDialogStyle, unique_ids::define_typed_element};
 
 #[derive(Default)]
@@ -75,7 +75,7 @@ impl<'a> UIElement for RacesList<'a> {
         f.render_stateful_widget(List::new(self.logs_cache.clone())
             .block(
                 Block::default()
-                    .title("(u)nset, (s)et, (d)elete")
+                    .title("(u)nset, (s)et, delete, (e)dit")
                     .borders(Borders::ALL)
                     .style(self.border_style)
             )
@@ -105,6 +105,12 @@ impl<'a> UIElement for RacesList<'a> {
             },
             KeyCode::Char('u') => {
                 app_ctx.data.current_race_id = None;
+                EventResult::Handled
+            },
+            KeyCode::Char('e') => {
+                if let Some(race_data) = self.selected_race(app_ctx) {
+                    app_ctx.actions.add(Actions::EditRace(race_data));
+                }
                 EventResult::Handled
             },
             KeyCode::Delete => {

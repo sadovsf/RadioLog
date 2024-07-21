@@ -16,6 +16,8 @@ pub enum Actions {
     FocusLog(Option<i64>),
     EditLog(i64),
 
+    EditRace(i64),
+
     ToggleMap
 }
 
